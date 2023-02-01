@@ -1,0 +1,50 @@
+{
+  "name": "directus-extension-texttoanything",
+  "version": "0.0.1",
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-custom-bundle"
+  ],
+  "directus:extension": {
+    "type": "bundle",
+    "path": {
+      "app": "dist/app.js",
+      "api": "dist/api.js"
+    },
+    "entries": [
+      {
+        "type": "operation",
+        "name": "GenerateBarcode",
+        "source": {
+          "app": "GenerateBarcode/src/app.ts",
+          "api": "GenerateBarcode/src/api.ts"
+        }
+      },
+      {
+        "type": "operation",
+        "name": "GeneratePDF",
+        "source": {
+          "app": "GeneratePDF/src/app.ts",
+          "api": "GeneratePDF/src/api.ts"
+        }
+      },
+      {
+        "type": "operation",
+        "name": "GenerateQRCode",
+        "source": {
+          "app": "GenerateQRCode/src/app.ts",
+          "api": "GenerateQRCode/src/api.ts"
+        }
+      }
+    ],
+    "host": "^9.22.1"
+  },
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build -w --no-minify"
+  },
+  "devDependencies": {
+    "@directus/extensions-sdk": "9.22.1"
+  }
+}
