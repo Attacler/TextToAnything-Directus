@@ -6,6 +6,7 @@
 
 Do you want to create PDFs, barcodes, and QR codes within Directus?
 This extension bundle offers the required operations to achieve that!
+!["Text to anything operations"](images/Operations.png?raw=true "Operations")
 
 ## Setup
 
