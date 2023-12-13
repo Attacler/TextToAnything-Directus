@@ -38,8 +38,6 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
         schema: {},
       });
 
-      console.log({ collection });
-
       schema = await getSchema();
     }
     const fieldsService = new services.FieldsService({ schema });
@@ -125,7 +123,6 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
         const fileSerice = new services.FilesService({
           schema: await getSchema(),
         });
-        // console.log(context.pdfoptions);
 
         const download = await axios
           .post(
@@ -147,28 +144,19 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
         });
       },
       async generatePDFFromTemplate(context: any) {
-        try {
-          console.log("Got schema", context, services.ItemsService);
-          const templateService = new services.ItemsService(
-            "TTA_htmltemplates",
-            {
-              schema: await getSchema(),
-            }
-          );
-          const template = await templateService.readOne(context.template);
-          console.log(template);
+        const templateService = new services.ItemsService("TTA_htmltemplates", {
+          schema: await getSchema(),
+        });
+        const template = await templateService.readOne(context.template);
 
-          return await (globalThis as any).TTA.generatePDF({
-            ...context,
-            pdfoptions: {
-              ...template,
-              html: template.template,
-              landscape: template.orientation == "landscape",
-            },
-          });
-        } catch (error) {
-          console.error(error);
-        }
+        return await (globalThis as any).TTA.generatePDF({
+          ...context,
+          pdfoptions: {
+            ...template,
+            html: template.template,
+            landscape: template.orientation == "landscape",
+          },
+        });
       },
       async generateQRCode(context: any) {
         const fileSerice = new services.FilesService({

@@ -22,10 +22,20 @@ or
 yarn add directus-extension-texttoanything
 ```
 
-Restart your Directus instance to complete the installation of the extension.
+Restart your Directus instance.
 
-After restarting you will see the operations appear.
-Every operation will ask for an RapidAPI Token.
+Go to to your project settings (Settings -> Settings) and scroll down to the Modules section. Enable the Text to anything settings.
+
+Go to the Text To Anything module -> Settings and fill in your Rapid API token.
+
+Click on save and now you are good to go!
+
+### Settings
+
+Inside of the Text To Anything Settings, you can fill in the following properties:<br/>
+RapidAPI token -> The token of RapidAPI<br/>
+Directus Assets token (optional) -> If you use any assets, this key will be used to load the images/assets.<br/>
+Directus Assets folder -> This folder will be used to upload your files into when you upload an asset within the template editor.
 
 ### RapidAPI Token
 
@@ -39,14 +49,17 @@ How to obtain a RapidAPI token:
 4. Here you can choose the API plan that you wish to use, Basic is good enough for testing.
    If you have any questions about the billing, please view the FAQ at the bottom of this page.
 5. Add your payment details
-   You can the necessary API token at . The extension will not function without it, but there is a free tier available for testing.
 6. Go to Endpoints and you should see the RapidAPI key on the right.
+
+The extension will not function without the Rapid API token, but there will always be a free tier available.
+You can fill in the token inside of the TTA settings.
 
 ## Supported Features
 
 The package currently supports the following operations:
 
 - Create a PDF based on the provided HTML
+- Create a HTML Template to PDF
 - Create a QRCode
 - Create a Barcode
 
@@ -59,7 +72,7 @@ If there are any questions or bugs, please create an issue.
 
 1. How do i find or reset my Rapid API key?
 
-You can find follow [this article](https://docs.rapidapi.com/docs/keys#api-key-rotation-or-resetting-a-compromised-api-key) in order to achieve this.
+You can find follow [this article](https://docs.rapidapi.com/docs/keys-and-key-rotation#creating-or-rotating-a-rapid-api-key) in order to achieve this.
 
 2. How can i stop my subscription?
 

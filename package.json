@@ -1,6 +1,6 @@
 {
   "name": "directus-extension-texttoanything",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "keywords": [
     "directus",
     "directus-extension",
@@ -38,7 +38,7 @@
       },
       {
         "type": "operation",
-        "name": "GeneratePDF",
+        "name": "GeneratePDFFromTemplate",
         "source": {
           "app": "GeneratePDFGenerateFromTemplate/src/app.ts",
           "api": "GeneratePDFGenerateFromTemplate/src/api.ts"
