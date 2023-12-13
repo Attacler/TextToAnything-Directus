@@ -39,7 +39,7 @@ Directus Assets folder -> This folder will be used to upload your files into whe
 
 ### RapidAPI Token
 
-The RapidAPI token is a requirement for the extension in order to talk with the TextToAnything API. We are using this API to eliminate the need for dependencies.
+The RapidAPI token is a requirement for the extension in order to talk with the TextToAnything API. We are using this API to eliminate the need for dependencies and to monitize any further developments.
 
 How to obtain a RapidAPI token:
 
@@ -51,7 +51,7 @@ How to obtain a RapidAPI token:
 5. Add your payment details
 6. Go to Endpoints and you should see the RapidAPI key on the right.
 
-The extension will not function without the Rapid API token, but there will always be a free tier available.
+The extension will not function without the Rapid API token, there will always be a free tier available.
 You can fill in the token inside of the TTA settings.
 
 ## Supported Features
@@ -72,7 +72,7 @@ If there are any questions or bugs, please create an issue.
 
 1. How do i find or reset my Rapid API key?
 
-You can find follow [this article](https://docs.rapidapi.com/docs/keys-and-key-rotation#creating-or-rotating-a-rapid-api-key) in order to achieve this.
+You can follow [this article](https://docs.rapidapi.com/docs/keys-and-key-rotation#creating-or-rotating-a-rapid-api-key) in order to achieve this.
 
 2. How can i stop my subscription?
 
