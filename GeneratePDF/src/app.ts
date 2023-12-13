@@ -13,15 +13,6 @@ export default defineOperationApp({
   ],
   options: [
     {
-      field: "RapidAPI token",
-      name: "RapidAPI token",
-      type: "string",
-      meta: {
-        width: "full",
-        interface: "input",
-      },
-    },
-    {
       field: "filename",
       name: "File name",
       type: "string",
@@ -42,6 +33,11 @@ export default defineOperationApp({
           placeholder: JSON.stringify(
             {
               html: "<h1>Hello world!</h1>",
+              format: "A4",
+              landscape: false,
+              margin: 10,
+              marginRight: 5,
+              marginLeft: 5,
             },
             null,
             2
@@ -49,6 +45,11 @@ export default defineOperationApp({
           template: JSON.stringify(
             {
               html: "<h1>Hello world!</h1>",
+              format: "A4",
+              landscape: false,
+              margin: 10,
+              marginRight: 5,
+              marginLeft: 5,
             },
             null,
             2

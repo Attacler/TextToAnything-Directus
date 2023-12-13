@@ -1,15 +1,14 @@
-import { toArray } from "@directus/shared/utils";
 import { defineOperationApi } from "@directus/extensions-sdk";
-import axios from "axios";
 
 type Options = {
   "RapidAPI token": string;
-  qrcodeContent: string;
+  filename: string;
+  pdfoptions: any;
 };
 
 export default defineOperationApi<Options>({
-  id: "ttaqrcode",
+  id: "ttapdftemplate",
   handler: async (context) => {
-    return await (globalThis as any).TTA.generateQRCode(context);
+    return await (globalThis as any).TTA.generatePDFFromTemplate(context);
   },
 });

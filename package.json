@@ -1,6 +1,6 @@
 {
   "name": "directus-extension-texttoanything",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "keywords": [
     "directus",
     "directus-extension",
@@ -38,11 +38,34 @@
       },
       {
         "type": "operation",
+        "name": "GeneratePDF",
+        "source": {
+          "app": "GeneratePDFGenerateFromTemplate/src/app.ts",
+          "api": "GeneratePDFGenerateFromTemplate/src/api.ts"
+        }
+      },
+      {
+        "type": "operation",
         "name": "GenerateQRCode",
         "source": {
           "app": "GenerateQRCode/src/app.ts",
           "api": "GenerateQRCode/src/api.ts"
         }
+      },
+      {
+        "type": "hook",
+        "name": "bootstrap",
+        "source": "installationhook/src/index.ts"
+      },
+      {
+        "type": "module",
+        "name": "settings module",
+        "source": "settingsmodule/src/index.ts"
+      },
+      {
+        "type": "interface",
+        "name": "PDF template selector",
+        "source": "PDFTemplateSelector/src/index.ts"
       }
     ],
     "host": "^9.22.1"

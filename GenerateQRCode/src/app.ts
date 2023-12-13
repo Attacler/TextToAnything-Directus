@@ -13,8 +13,8 @@ export default defineOperationApp({
   ],
   options: [
     {
-      field: "RapidAPI token",
-      name: "RapidAPI token",
+      field: "qrcodeContent",
+      name: "QRCode content",
       type: "string",
       meta: {
         width: "full",
@@ -22,11 +22,38 @@ export default defineOperationApp({
       },
     },
     {
-      field: "qrcodeContent",
-      name: "QRCode content",
+      field: "lightColor",
+      name: "Light color",
       type: "string",
       meta: {
         width: "full",
+        interface: "input",
+      },
+    },
+    {
+      field: "darkColor",
+      name: "Dark color",
+      type: "string",
+      meta: {
+        width: "full",
+        interface: "input",
+      },
+    },
+    {
+      field: "margin",
+      name: "Margin",
+      type: "integer",
+      meta: {
+        width: "half",
+        interface: "input",
+      },
+    },
+    {
+      field: "width",
+      name: "Width",
+      type: "integer",
+      meta: {
+        width: "half",
         interface: "input",
       },
     },

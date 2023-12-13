@@ -1,0 +1,31 @@
+{
+  "name": "directus-extension-GeneratePDF",
+  "version": "1.0.0",
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-custom-operation"
+  ],
+  "directus:extension": {
+    "type": "operation",
+    "path": {
+      "app": "../../extensions/operations/GeneratePDF/app.js",
+      "api": "../../extensions/operations/GeneratePDF/api.js"
+    },
+    "source": {
+      "app": "src/app.ts",
+      "api": "src/api.ts"
+    },
+    "host": "^9.22.1"
+  },
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build -w --no-minify"
+  },
+  "devDependencies": {
+    "@directus/extensions-sdk": "9.22.1",
+    "@types/node": "^18.11.18",
+    "typescript": "^4.9.4",
+    "vue": "^3.2.45"
+  }
+}

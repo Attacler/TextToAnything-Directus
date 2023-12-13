@@ -125,15 +125,6 @@ export default defineOperationApp({
   ],
   options: [
     {
-      field: "RapidAPI token",
-      name: "RapidAPI token",
-      type: "string",
-      meta: {
-        width: "full",
-        interface: "input",
-      },
-    },
-    {
       field: "barcodeContent",
       name: "content",
       type: "string",
