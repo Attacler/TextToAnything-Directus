@@ -237,7 +237,7 @@ async function fetchTemplates() {
 }
 
 async function saveTemplate() {
-  if (currentTemplate.value.id == -1) {
+  if (currentTemplate.value.id != -1) {
     await api.post("/items/TTA_htmltemplates", {
       ...currentTemplate.value,
     });
