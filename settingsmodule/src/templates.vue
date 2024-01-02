@@ -237,9 +237,11 @@ async function fetchTemplates() {
 }
 
 async function saveTemplate() {
-  if (currentTemplate.value.id != -1) {
+  console.log(currentTemplate.value);
+  if (currentTemplate.value.id == -1) {
     await api.post("/items/TTA_htmltemplates", {
       ...currentTemplate.value,
+      id: undefined,
     });
   } else {
     await api.patch("/items/TTA_htmltemplates/" + currentTemplate.value.id, {

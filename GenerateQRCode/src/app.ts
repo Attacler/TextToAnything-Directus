@@ -5,15 +5,15 @@ export default defineOperationApp({
   name: "TTA generate QRcode",
   icon: "box",
   description: "Generate a QRcode trough Text to anything!",
-  overview: ({ qrcodeContent }) => [
+  overview: ({ content }) => [
     {
       label: "QRCode content",
-      text: qrcodeContent,
+      text: content,
     },
   ],
   options: [
     {
-      field: "qrcodeContent",
+      field: "content",
       name: "QRCode content",
       type: "string",
       meta: {

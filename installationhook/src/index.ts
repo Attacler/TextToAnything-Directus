@@ -165,9 +165,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         const download = await axios
           .get("https://text-to-anything.p.rapidapi.com/generateQR", {
-            params: {
-              content: context.qrcodeContent,
-            },
+            params: context,
             headers: {
               "X-RapidAPI-Key": context["RapidAPI token"],
             },
