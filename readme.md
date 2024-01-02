@@ -11,7 +11,7 @@ This extension bundle offers the required operations to achieve that!
 The package currently supports the following operations:
 
 - Create a PDF based on the provided HTML
-- Create a HTML Template to PDF
+- Create a PDF based on a HTML Template
 - Create a QRCode
 - Create a Barcode
 
