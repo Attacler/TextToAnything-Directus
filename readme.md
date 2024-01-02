@@ -15,6 +15,11 @@ The package currently supports the following operations:
 - Create a QRCode
 - Create a Barcode
 
+The actions work trough flow operations and will upload the PDF/QRCode/Barcode directly into Directus.
+The operation will return the Directus file id which you can use to link the file to a record.
+
+If there are any questions or bugs, please create an issue.
+
 ## Documentation
 
 - [Installation](https://github.com/Attacler/TextToAnything-Directus/wiki/Installation)
@@ -22,11 +27,6 @@ The package currently supports the following operations:
 - [PDF from HTML](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-from-HTML)
 - [PDF from template](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-templates)
 - [QRcode](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-QRCodes)
-
-The actions work trough flow operations and will upload the PDF/QRCode/Barcode directly into Directus.
-The operation will return the Directus file id which you can use to link the file to a record.
-
-If there are any questions or bugs, please create an issue.
 
 ## FAQ
 
