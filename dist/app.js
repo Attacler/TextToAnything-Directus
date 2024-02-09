@@ -340,6 +340,234 @@ var e3 = defineOperationApp({
   ]
 });
 
+const tagName = String.raw`[A-Za-z][^/\s>]*`;
+
+// Preserve strings in templates and such
+// Avoid apostrophes and unintentional captures
+const doubleQuotedString = String.raw`(?<!\w)"(?:\\[^<>\n]|[^\\"<>\n])*"(?!\w)`;
+const singleQuotedString = String.raw`(?<!\w)'(?:\\[^<>\n]|[^\\'<>\n])*'(?!\w)`;
+const quotedString = String.raw`${doubleQuotedString}|${singleQuotedString}`;
+
+const quotedAttrValue = String.raw`"(?<quotedAttrValue>[^"]*)"`;
+const singleQuotedAttrValue = String.raw`'(?<singleQuotedAttrValue>[^']*)'`;
+// https://mothereff.in/unquoted-attributes
+const unquotedAttrValue = String.raw`(?<unquotedAttrValue>[^\s"'\`=<>]+)`;
+
+const attrName = String.raw`[^=\s>/"']+(?=[=>\s]|$)`;
+const attrValue = String.raw`${quotedAttrValue}|${singleQuotedAttrValue}|${unquotedAttrValue}`;
+const attrNameValue = String.raw`(?<attrName>${attrName})(?:\s*=\s*(?:${attrValue}))?`;
+
+// Make sure not to swallow the closing slash if one exists
+const attrText = String.raw`${quotedString}|[^\s>]*[^\s>/]|[^\s>]*/(?!\s*>)`;
+
+const attr = String.raw`(?<attrSpace>\s*)(?:${attrNameValue}|(?<attrText>${attrText}))`;
+
+const tokens = {
+  comment: String.raw`<!--.*?-->`,
+  dtd: String.raw`<![^>]+>`,
+  startTag: String.raw`<(?<startTagName>${tagName})(?<attrs>(?:${attr})*)\s*(?<closingSlash>/?)\s*>`,
+  endTag: String.raw`</(?<endTagName>${tagName})\s*>`,
+  space: String.raw`\s+`,
+  text: String.raw`[^<\s"']+|${quotedString}|['"]`,
+  wildcard: String.raw`.`,
+};
+
+const grammar = Object.entries(tokens)
+  .map(([k, v]) => `(?<${k}>${v})`)
+  .join("|");
+
+/**
+ *
+ * @param {RegExp} lexer
+ * @param {string} s
+ */
+function* getTokens(lexer, s) {
+  let res;
+  let { lastIndex } = lexer;
+  while ((res = lexer.exec(s))) {
+    yield /** @type {RegExpExecArray & { groups: Record<string, string> }} */ (
+      res
+    );
+    ({ lastIndex } = lexer);
+  }
+  if (lastIndex != s.length) throw new Error("Failed to parse string");
+}
+
+const voidTags = new Set([
+  "area",
+  "base",
+  "basefont",
+  "bgsound",
+  "br",
+  "col",
+  "command",
+  "embed",
+  "frame",
+  "hr",
+  "image",
+  "img",
+  "input",
+  "keygen",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+function format(/** @type {string} */ html, indent = "  ", width = 80) {
+  const lexer = new RegExp(grammar, "gys");
+  const attrLexer = new RegExp(attr, "gy");
+
+  /** @type {string[]} */
+  const output = [];
+
+  /** @type {string | null} */
+  let specialElement = null;
+  let level = 0;
+
+  let lineLength = 0;
+  let span = "";
+  let spanLevel = 0;
+  let lastSpace = "";
+
+  const flushOutput = () => {
+    if (lastSpace && lastSpace != "\n") {
+      const newline = span.indexOf("\n");
+      const len = newline == -1 ? span.length : newline;
+      if (lineLength + lastSpace.length + len > width) lastSpace = "\n";
+    }
+
+    const ind = lastSpace == "\n" && span ? indent.repeat(spanLevel) : "";
+    const out = `${lastSpace}${ind}${span}`;
+
+    if (out) {
+      const pos = out.lastIndexOf("\n");
+      if (pos == -1) lineLength += out.length;
+      else lineLength = out.length - pos - 1;
+      output.push(out);
+    }
+
+    span = lastSpace = "";
+  };
+
+  const addOutput = (/** @type {string[]} */ ...args) => {
+    for (const s of args) {
+      if (!specialElement && /^\s+$/.test(s)) {
+        flushOutput();
+        lastSpace = s;
+      } else {
+        if (!span) spanLevel = level;
+        span += s;
+      }
+    }
+  };
+
+  for (const token of getTokens(lexer, html)) {
+    // For testing
+    if (/** @type {any} */ (format).__strict && token.groups.wildcard)
+      throw new Error("Unexpected wildcard");
+
+    if (token.groups.endTag) {
+      const tagName = token.groups.endTagName.toLowerCase();
+      if (tagName == specialElement) specialElement = null;
+      if (!specialElement) {
+        --level;
+        addOutput(`</${tagName}>`);
+      }
+    }
+
+    if (!specialElement) {
+      if (token.groups.space) {
+        addOutput(...(token[0].match(/\n/g)?.slice(0, 2) ?? [" "]));
+      } else if (
+        token.groups.comment ||
+        token.groups.dtd ||
+        token.groups.text ||
+        token.groups.wildcard
+      ) {
+        addOutput(token[0]);
+      } else if (token.groups.startTag) {
+        const tagName = token.groups.startTagName.toLowerCase();
+
+        addOutput(`<${tagName}`);
+
+        ++level;
+
+        if (token.groups.attrs) {
+          let { lastIndex } = attrLexer;
+          let attrToken;
+          let lastToken;
+          while (
+            (attrToken =
+              /** @type {RegExpExecArray & { groups: Record<string, string> }} */ (
+                attrLexer.exec(token.groups.attrs)
+              ))
+          ) {
+            ({ lastIndex } = attrLexer);
+
+            // For testing
+            if (
+              /** @type {any} */ (format).__strict &&
+              attrToken.groups.attrText
+            )
+              throw new Error("Unexpected attr text");
+
+            if (attrToken.groups.attrText) {
+              if (attrToken.groups.attrSpace)
+                addOutput(/\n/.test(attrToken.groups.attrSpace) ? "\n" : " ");
+              addOutput(attrToken.groups.attrText);
+            } else {
+              if (attrToken.groups.attrSpace || !lastToken?.groups.attrText)
+                addOutput(/\n/.test(attrToken.groups.attrSpace) ? "\n" : " ");
+              addOutput(
+                `${attrToken.groups.attrName}${
+                  attrToken.groups.quotedAttrValue
+                    ? `="${attrToken.groups.quotedAttrValue}"`
+                    : attrToken.groups.singleQuotedAttrValue
+                    ? `='${attrToken.groups.singleQuotedAttrValue}'`
+                    : attrToken.groups.unquotedAttrValue
+                    ? `=${attrToken.groups.unquotedAttrValue}`
+                    : ""
+                }`
+              );
+            }
+
+            lastToken = attrToken;
+          }
+          if (lastIndex != token.groups.attrs.length)
+            throw new Error("Failed to parse attributes");
+        }
+
+        const hasClosingSlash = Boolean(token.groups.closingSlash);
+
+        addOutput(hasClosingSlash ? " />" : ">");
+
+        if (hasClosingSlash || voidTags.has(tagName)) --level;
+        else if (["pre", "textarea", "script", "style"].includes(tagName))
+          specialElement = tagName;
+      }
+    } else addOutput(token[0]);
+  }
+
+  // Flush remaining output
+  flushOutput();
+
+  let newline = false;
+  while (/^\s+$/.test(output[output.length - 1])) {
+    const last = /** @type {string} */ (output.pop());
+    if (/\n/.test(last)) newline = true;
+  }
+
+  if (newline) output.push("\n");
+
+  return output.join("");
+}
+
+format.default = format;
+var htmlFormat = format;
+
 function render(_ctx, _cache) {
   const _component_v_icon = resolveComponent("v-icon");
   const _component_v_list_item_icon = resolveComponent("v-list-item-icon");
@@ -401,15 +629,15 @@ const _hoisted_1$1 = {
   class: "TTA-popup"
 };
 const _hoisted_2$1 = { class: "TTA-toolbar" };
-const _hoisted_3$1 = { class: "right-side" };
-const _hoisted_4$1 = { class: "setwidth" };
+const _hoisted_3 = { class: "right-side" };
+const _hoisted_4 = { class: "setwidth" };
 const _hoisted_5 = { class: "TTA-action" };
 const _hoisted_6 = { class: "TTA-wapper" };
-const _hoisted_7 = ["srcdoc"];
+const _hoisted_7 = ["src"];
 var script$3 = /* @__PURE__ */ defineComponent({
   __name: "templates",
   setup(__props) {
-    const templates = ref([]), templateDetails = ref(false), editTemplate = ref(false), assetsKey = ref("");
+    const templates = ref([]), templateDetails = ref(false), editTemplate = ref(false);
     const widthPartition = ref(50);
     const previewWidth = computed(() => {
       return 100 - widthPartition.value;
@@ -436,11 +664,9 @@ var script$3 = /* @__PURE__ */ defineComponent({
       }));
     });
     const computedTemplate = computed(() => {
-      return `${currentTemplate.value.template}`;
+      return "data:text/html;charset=utf-8," + encodeURIComponent(`${currentTemplate.value.template}`);
     });
     onMounted(async () => {
-      const settings = await api.get("/settings");
-      assetsKey.value = settings.data.data.TTA_ASSETS_KEY;
       widthPartition.value = parseInt(
         localStorage.getItem("TTA-widthPartition") || "50"
       );
@@ -490,6 +716,9 @@ var script$3 = /* @__PURE__ */ defineComponent({
         orientation: "portrait"
       };
       editTemplate.value = false;
+    }
+    function alignHTML() {
+      currentTemplate.value.template = htmlFormat(currentTemplate.value.template);
     }
     return (_ctx, _cache) => {
       const _component_v_icon = resolveComponent("v-icon");
@@ -678,14 +907,20 @@ var script$3 = /* @__PURE__ */ defineComponent({
                 createTextVNode(toDisplayString(currentTemplate.value.name) + " ", 1),
                 createVNode(_component_v_icon, { name: "edit" })
               ]),
-              createElementVNode("div", _hoisted_3$1, [
+              createElementVNode("div", _hoisted_3, [
+                createElementVNode("div", {
+                  class: "TTA-action",
+                  onClick: alignHTML
+                }, [
+                  createVNode(_component_v_icon, { name: "vertical_align_center" })
+                ]),
                 createElementVNode("div", {
                   class: "TTA-action",
                   onClick: saveTemplate
                 }, [
                   createVNode(_component_v_icon, { name: "save" })
                 ]),
-                createElementVNode("div", _hoisted_4$1, [
+                createElementVNode("div", _hoisted_4, [
                   createVNode(_component_v_slider, {
                     modelValue: widthPartition.value,
                     "onUpdate:modelValue": _cache[9] || (_cache[9] = ($event) => widthPartition.value = $event),
@@ -703,16 +938,16 @@ var script$3 = /* @__PURE__ */ defineComponent({
               ])
             ]),
             createElementVNode("div", _hoisted_6, [
-              (openBlock(), createBlock(resolveDynamicComponent("interface-input-rich-text-html"), {
+              (openBlock(), createBlock(resolveDynamicComponent("interface-input-code"), {
                 class: "TTA-editor",
                 value: currentTemplate.value.template,
-                imageToken: assetsKey.value,
+                language: "htmlmixed",
                 onInput: _cache[10] || (_cache[10] = (html) => currentTemplate.value.template = html),
                 style: normalizeStyle("width: " + unref(editorWidth) + "%")
-              }, null, 40, ["value", "imageToken", "style"])),
+              }, null, 40, ["value", "style"])),
               createElementVNode("iframe", {
                 class: "TTA-preview",
-                srcdoc: unref(computedTemplate),
+                src: unref(computedTemplate),
                 style: normalizeStyle("width: " + unref(previewWidth) + "%")
               }, null, 12, _hoisted_7)
             ])
@@ -748,7 +983,7 @@ var script$3 = /* @__PURE__ */ defineComponent({
 
 var e=[],t=[];function n(n,r){if(n&&"undefined"!=typeof document){var a,s=!0===r.prepend?"prepend":"append",d=!0===r.singleTag,i="string"==typeof r.container?document.querySelector(r.container):document.getElementsByTagName("head")[0];if(d){var u=e.indexOf(i);-1===u&&(u=e.push(i)-1,t[u]={}),a=t[u]&&t[u][s]?t[u][s]:t[u][s]=c();}else a=c();65279===n.charCodeAt(0)&&(n=n.substring(1)),a.styleSheet?a.styleSheet.cssText+=n:a.appendChild(document.createTextNode(n));}function c(){var e=document.createElement("style");if(e.setAttribute("type","text/css"),r.attributes)for(var t=Object.keys(r.attributes),n=0;n<t.length;n++)e.setAttribute(t[n],r.attributes[t[n]]);var a="prepend"===s?"afterbegin":"beforeend";return i.insertAdjacentElement(a,e),e}}
 
-var css$1 = "\n.TTA-popup {\n  position: fixed;\n  left: 0;\n  top: 0;\n  width: 100%;\n  height: 100%;\n  z-index: 100;\n  display: flex;\n  flex-direction: column;\n  background-color: var(--background-subdued);\n}\n.TTA-toolbar {\n  background-color: var(--background-subdued);\n  display: flex;\n  justify-content: space-between;\n}\n.TTA-toolbar .right-side {\n  display: flex;\n  gap: 5px;\n}\n.TTA-toolbar .TTA-slider {\n  padding-top: 5px;\n}\n.TTA-toolbar .TTA-action {\n  padding: 5px;\n  cursor: pointer;\n}\n.TTA-toolbar .setwidth {\n  display: flex;\n  gap: 10px;\n  padding-top: 6px;\n}\n.TTA-toolbar .TTA-template-title {\n  margin: auto 0;\n  font-size: 18px;\n  cursor: pointer;\n  padding-right: 5px;\n  padding-left: 20px;\n  border-bottom: 1px solid var(--v-list-item-border-color);\n}\n.TTA-toolbar .TTA-template-title i {\n  padding-left: 5px;\n}\n.TTA-wapper {\n  display: flex;\n  flex-grow: 1;\n}\n.TTA-preview {\n  flex-grow: 1;\n  background-color: white;\n  border: 0;\n}\n.TTA-editor {\n  flex-grow: 1;\n  height: 100%;\n}\n.TTA-editor .tox.tox-tinymce {\n  height: 100% !important;\n  border-radius: 0 !important;\n}\n";
+var css$1 = "\n.TTA-popup {\n  position: fixed;\n  left: 0;\n  top: 0;\n  width: 100%;\n  height: 100%;\n  z-index: 100;\n  display: flex;\n  flex-direction: column;\n  background-color: var(--background-subdued);\n}\n.TTA-toolbar {\n  background-color: var(--background-subdued);\n  display: flex;\n  justify-content: space-between;\n}\n.TTA-toolbar .right-side {\n  display: flex;\n  gap: 5px;\n}\n.TTA-toolbar .TTA-slider {\n  padding-top: 5px;\n}\n.TTA-toolbar .TTA-action {\n  padding: 5px;\n  cursor: pointer;\n}\n.TTA-toolbar .setwidth {\n  display: flex;\n  gap: 10px;\n  padding-top: 6px;\n}\n.TTA-toolbar .TTA-template-title {\n  margin: auto 0;\n  font-size: 18px;\n  cursor: pointer;\n  padding-right: 5px;\n  padding-left: 20px;\n  border-bottom: 1px solid var(--v-list-item-border-color);\n}\n.TTA-toolbar .TTA-template-title i {\n  padding-left: 5px;\n}\n.TTA-wapper {\n  display: flex;\n  flex-grow: 1;\n  overflow: hidden;\n}\n.TTA-preview {\n  flex-grow: 1;\n  background-color: white;\n  border: 0;\n}\n.TTA-editor {\n  flex-grow: 1;\n  height: 100%;\n}\n.TTA-editor > div {\n  height: 100% !important;\n  border-radius: 0 !important;\n}\n.TTA-editor .CodeMirror {\n  height: 100%;\n}\n";
 n(css$1,{});
 
 script$3.__file = "settingsmodule/src/templates.vue";
@@ -756,22 +991,16 @@ script$3.__file = "settingsmodule/src/templates.vue";
 const _withScopeId = (n) => (pushScopeId("data-v-014dce90"), n = n(), popScopeId(), n);
 const _hoisted_1 = { class: "px-5" };
 const _hoisted_2 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("span", { class: "field-name" }, "RapidAPI token", -1));
-const _hoisted_3 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("span", { class: "field-name" }, "Directus Assets token", -1));
-const _hoisted_4 = /* @__PURE__ */ _withScopeId(() => /* @__PURE__ */ createElementVNode("span", { class: "field-name" }, "Directus Assets folder", -1));
 var script$2 = /* @__PURE__ */ defineComponent({
   __name: "settings",
   setup(__props) {
     const rapidKey = ref("");
-    const assetsKey = ref("");
-    const assetsFolder = ref("");
     const saving = ref(false);
     const api = useApi();
     const folder = ref([]);
     onMounted(async () => {
       const settings = await api.get("/settings");
       rapidKey.value = settings.data.data.TTA_KEY;
-      assetsKey.value = settings.data.data.TTA_ASSETS_KEY;
-      assetsFolder.value = settings.data.data.TTA_ASSETS_FOLDER;
       const folders = await api.get("/folders");
       folder.value = folders.data.data.map((e) => ({
         text: e.name,
@@ -781,9 +1010,7 @@ var script$2 = /* @__PURE__ */ defineComponent({
     async function saveSettings() {
       saving.value = true;
       await api.patch("/settings", {
-        TTA_KEY: rapidKey.value,
-        TTA_ASSETS_KEY: assetsKey.value,
-        TTA_ASSETS_FOLDER: assetsFolder.value
+        TTA_KEY: rapidKey.value
       });
       setTimeout(() => {
         saving.value = false;
@@ -792,7 +1019,6 @@ var script$2 = /* @__PURE__ */ defineComponent({
     return (_ctx, _cache) => {
       const _component_v_card_title = resolveComponent("v-card-title");
       const _component_v_input = resolveComponent("v-input");
-      const _component_v_select = resolveComponent("v-select");
       const _component_v_card_text = resolveComponent("v-card-text");
       const _component_v_icon = resolveComponent("v-icon");
       const _component_v_button = resolveComponent("v-button");
@@ -822,22 +1048,6 @@ var script$2 = /* @__PURE__ */ defineComponent({
                         modelValue: rapidKey.value,
                         "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => rapidKey.value = $event)
                       }, null, 8, ["modelValue"])
-                    ]),
-                    createElementVNode("div", null, [
-                      _hoisted_3,
-                      createVNode(_component_v_input, {
-                        modelValue: assetsKey.value,
-                        "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => assetsKey.value = $event)
-                      }, null, 8, ["modelValue"])
-                    ]),
-                    createElementVNode("div", null, [
-                      _hoisted_4,
-                      createVNode(_component_v_select, {
-                        modelValue: assetsFolder.value,
-                        "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => assetsFolder.value = $event),
-                        items: folder.value,
-                        placeholder: "Assets folder"
-                      }, null, 8, ["modelValue", "items"])
                     ])
                   ]),
                   _: 1

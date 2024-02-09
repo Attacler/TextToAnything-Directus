@@ -4,8 +4,6 @@ import { useApi, useStores } from "@directus/extensions-sdk";
 import TTAnav from "./TTAnav.vue";
 
 const rapidKey = ref("");
-const assetsKey = ref("");
-const assetsFolder = ref("");
 const saving = ref(false);
 const api = useApi();
 
@@ -15,8 +13,6 @@ onMounted(async () => {
   const settings = await api.get("/settings");
 
   rapidKey.value = settings.data.data.TTA_KEY;
-  assetsKey.value = settings.data.data.TTA_ASSETS_KEY;
-  assetsFolder.value = settings.data.data.TTA_ASSETS_FOLDER;
 
   const folders = await api.get("/folders");
 
@@ -31,8 +27,6 @@ async function saveSettings() {
 
   await api.patch("/settings", {
     TTA_KEY: rapidKey.value,
-    TTA_ASSETS_KEY: assetsKey.value,
-    TTA_ASSETS_FOLDER: assetsFolder.value,
   });
 
   setTimeout(() => {
@@ -55,20 +49,6 @@ async function saveSettings() {
             <span class="field-name">RapidAPI token</span>
 
             <v-input v-model="rapidKey" />
-          </div>
-          <div>
-            <span class="field-name">Directus Assets token</span>
-
-            <v-input v-model="assetsKey" />
-          </div>
-
-          <div>
-            <span class="field-name">Directus Assets folder</span>
-            <v-select
-              v-model="assetsFolder"
-              :items="folder"
-              placeholder="Assets folder"
-            />
           </div>
         </v-card-text>
         <v-card-actions>

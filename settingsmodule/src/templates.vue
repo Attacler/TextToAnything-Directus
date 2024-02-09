@@ -103,6 +103,9 @@
           <v-icon name="edit" />
         </div>
         <div class="right-side">
+          <div class="TTA-action" @click="alignHTML">
+            <v-icon name="vertical_align_center" />
+          </div>
           <div class="TTA-action" @click="saveTemplate">
             <v-icon name="save" />
           </div>
@@ -122,16 +125,16 @@
       </div>
       <div class="TTA-wapper">
         <component
-          is="interface-input-rich-text-html"
+          is="interface-input-code"
           class="TTA-editor"
           :value="currentTemplate.template"
-          :imageToken="assetsKey"
+          language="htmlmixed"
           @input="(html) => (currentTemplate.template = html)"
           :style="'width: ' + editorWidth + '%'"
         />
         <iframe
           class="TTA-preview"
-          :srcdoc="computedTemplate"
+          :src="computedTemplate"
           :style="'width: ' + previewWidth + '%'"
         />
       </div>
@@ -164,12 +167,12 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useStores, useApi } from "@directus/extensions-sdk";
+import format from "html-format";
 import TTAnav from "./TTAnav.vue";
 
 const templates = ref([]),
   templateDetails = ref(false),
-  editTemplate = ref(false),
-  assetsKey = ref("");
+  editTemplate = ref(false);
 
 const widthPartition = ref(50);
 
@@ -206,13 +209,13 @@ const collections = computed(() => {
 });
 
 const computedTemplate = computed(() => {
-  return `${currentTemplate.value.template}`;
+  return (
+    "data:text/html;charset=utf-8," +
+    encodeURIComponent(`${currentTemplate.value.template}`)
+  );
 });
 
 onMounted(async () => {
-  const settings = await api.get("/settings");
-
-  assetsKey.value = settings.data.data.TTA_ASSETS_KEY;
   widthPartition.value = parseInt(
     localStorage.getItem("TTA-widthPartition") || "50"
   );
@@ -273,6 +276,10 @@ function closeEditor() {
   };
   editTemplate.value = false;
 }
+
+function alignHTML() {
+  currentTemplate.value.template = format(currentTemplate.value.template);
+}
 </script>
 
 <style>
@@ -328,6 +335,7 @@ function closeEditor() {
 .TTA-wapper {
   display: flex;
   flex-grow: 1;
+  overflow: hidden;
 }
 
 .TTA-preview {
@@ -340,8 +348,12 @@ function closeEditor() {
   height: 100%;
 }
 
-.TTA-editor .tox.tox-tinymce {
+.TTA-editor > div {
   height: 100% !important;
   border-radius: 0 !important;
+}
+
+.TTA-editor .CodeMirror {
+  height: 100%;
 }
 </style>

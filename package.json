@@ -76,5 +76,8 @@
   },
   "devDependencies": {
     "@directus/extensions-sdk": "9.22.1"
+  },
+  "dependencies": {
+    "html-format": "^1.1.6"
   }
 }
