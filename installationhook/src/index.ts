@@ -60,26 +60,6 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
       );
     }
 
-    if (schema.collections.directus_settings?.fields.TTA_ASSETS_KEY == null) {
-      await addField(
-        "TTA_ASSETS_KEY",
-        "string",
-        { hidden: true },
-        "directus_settings"
-      );
-    }
-
-    if (
-      schema.collections.directus_settings?.fields.TTA_ASSETS_FOLDER == null
-    ) {
-      await addField(
-        "TTA_ASSETS_FOLDER",
-        "string",
-        { hidden: true },
-        "directus_settings"
-      );
-    }
-
     (globalThis as any).TTA = {
       async generateBarCode(context: any) {
         const fileSerice = new services.FilesService({
