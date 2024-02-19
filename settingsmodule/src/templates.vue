@@ -124,14 +124,25 @@
         </div>
       </div>
       <div class="TTA-wapper">
-        <component
-          is="interface-input-code"
-          class="TTA-editor"
-          :value="currentTemplate.template"
-          language="htmlmixed"
-          @input="(html) => (currentTemplate.template = html)"
-          :style="'width: ' + editorWidth + '%'"
-        />
+        <div :style="'width: ' + editorWidth + '%'" class="TTA-editor-wrapper">
+          <component
+            is="interface-input-code"
+            class="TTA-editor"
+            :value="currentHTML"
+            language="htmlmixed"
+            @input="changeHTML"
+          />
+          <div id="partSelect">
+            <v-select
+              v-model="currentPart"
+              :items="[
+                { value: 'Header', text: 'Header' },
+                { value: 'Body', text: 'Body' },
+                { value: 'Footer', text: 'Footer' },
+              ]"
+            ></v-select>
+          </div>
+        </div>
         <iframe
           class="TTA-preview"
           :src="computedTemplate"
@@ -172,7 +183,8 @@ import TTAnav from "./TTAnav.vue";
 
 const templates = ref([]),
   templateDetails = ref(false),
-  editTemplate = ref(false);
+  editTemplate = ref(false),
+  currentPart = ref("Body");
 
 const widthPartition = ref(50);
 
@@ -184,17 +196,34 @@ const editorWidth = computed(() => {
   return 100 - previewWidth.value;
 });
 
+const currentHTML = computed(() => {
+  if (currentPart.value == "Header") return currentTemplate.value.header;
+  if (currentPart.value == "Body") return currentTemplate.value.template;
+  return currentTemplate.value.footer;
+});
+
+function changeHTML(html) {
+  if (currentPart.value == "Header") currentTemplate.value.header = html;
+  else if (currentPart.value == "Body") currentTemplate.value.template = html;
+  else currentTemplate.value.footer = html;
+}
+
 const api = useApi();
 
-const currentTemplate = ref({
-  template: "",
+const defaultTemplate = {
+  template: "<h1>Hello world!</h1>",
   id: -1,
   name: "",
   description: "",
   collection: "",
   format: "A4",
   orientation: "portrait",
-});
+  header:
+    "<!-- Any content/styling here is seperated from the body on render-->\n<style> \n    #header, #footer { \n        margin: 0 !important; \n        padding: 0 !important; \n        font-size: 9px; \n        -webkit-print-color-adjust: exact;\n    }\n</style>\n<div style='width:100%'>\n    <span class='date'></span>\n    <span class='title' style='float:right'></span>\n</div>",
+  footer:
+    "<!-- Any content/styling here is seperated from the body on render-->\n<style> \n    #header, #footer { \n        margin: 0 !important; \n        padding: 0 !important; \n        font-size: 9px; -webkit-print-color-adjust: exact;\n    }\n</style>\n<div\n  style=‘width:100%’>\n  <div style=‘float:right’><span\n      class='pageNumber'></span> / <span class='totalPages'></span>\n  </div>\n</div>",
+};
+const currentTemplate = ref(structuredClone(defaultTemplate));
 
 const { useCollectionsStore } = useStores();
 const collectionsStore = useCollectionsStore();
@@ -209,10 +238,24 @@ const collections = computed(() => {
 });
 
 const computedTemplate = computed(() => {
-  return (
-    "data:text/html;charset=utf-8," +
-    encodeURIComponent(`${currentTemplate.value.template}`)
+  const blob = new Blob(
+    [
+      `<style>
+      .date:before{content: "Date here";font-style: italic; }
+      .title:before{content: "Title here";font-style: italic; }
+      .pageNumber:before{content: "Pagenumber";font-style: italic; }
+      .totalPages:before{content: "Total pages";font-style: italic; }
+      </style>` +
+        (currentTemplate.value.header || "") +
+        (currentTemplate.value.template || "") +
+        (currentTemplate.value.footer || ""),
+    ],
+    {
+      type: "text/html",
+    }
   );
+  const objectUrl = URL.createObjectURL(blob);
+  return objectUrl;
 });
 
 onMounted(async () => {
@@ -240,7 +283,6 @@ async function fetchTemplates() {
 }
 
 async function saveTemplate() {
-  console.log(currentTemplate.value);
   if (currentTemplate.value.id == -1) {
     await api.post("/items/TTA_htmltemplates", {
       ...currentTemplate.value,
@@ -259,26 +301,19 @@ async function saveTemplate() {
 }
 
 function openTemplate({ item }) {
-  console.log(item);
   currentTemplate.value = item;
   editTemplate.value = true;
 }
 
 function closeEditor() {
-  currentTemplate.value = {
-    template: "",
-    id: -1,
-    name: "",
-    description: "",
-    collection: "",
-    format: "A4",
-    orientation: "portrait",
-  };
+  currentTemplate.value = structuredClone(defaultTemplate);
   editTemplate.value = false;
 }
 
 function alignHTML() {
   currentTemplate.value.template = format(currentTemplate.value.template);
+  currentTemplate.value.footer = format(currentTemplate.value.footer);
+  currentTemplate.value.header = format(currentTemplate.value.header);
 }
 </script>
 
@@ -336,6 +371,7 @@ function alignHTML() {
   display: flex;
   flex-grow: 1;
   overflow: hidden;
+  position: relative;
 }
 
 .TTA-preview {
@@ -346,6 +382,10 @@ function alignHTML() {
 .TTA-editor {
   flex-grow: 1;
   height: 100%;
+  width: 100%;
+}
+.TTA-wapper .TTA-editor-wrapper {
+  position: relative;
 }
 
 .TTA-editor > div {
@@ -355,5 +395,12 @@ function alignHTML() {
 
 .TTA-editor .CodeMirror {
   height: 100%;
+}
+
+.TTA-wapper #partSelect {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 200px;
 }
 </style>

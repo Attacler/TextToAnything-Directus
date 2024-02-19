@@ -47,7 +47,9 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
     if (fields.description == null) await addField("description", "text");
     if (fields.collection == null) await addField("collection", "string");
     if (fields.name == null) await addField("name", "text");
+    if (fields.header == null) await addField("header", "text");
     if (fields.template == null) await addField("template", "text");
+    if (fields.footer == null) await addField("footer", "text");
     if (fields.format == null) await addField("format", "string");
     if (fields.orientation == null) await addField("orientation", "string");
 
@@ -94,9 +96,19 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
         }
 
         if (Object.keys(context.templatevariables || {}).length > 0) {
+          const header = engine.parse(context.pdfoptions.header || "");
           const tpl = engine.parse(context.pdfoptions.html);
+          const footer = engine.parse(context.pdfoptions.footer || "");
+          context.pdfoptions.header = await engine.render(
+            header,
+            context.templatevariables
+          );
           context.pdfoptions.html = await engine.render(
             tpl,
+            context.templatevariables
+          );
+          context.pdfoptions.footer = await engine.render(
+            footer,
             context.templatevariables
           );
         }
