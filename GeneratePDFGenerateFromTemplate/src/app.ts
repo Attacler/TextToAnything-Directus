@@ -3,7 +3,7 @@ import { defineOperationApp } from "@directus/extensions-sdk";
 export default defineOperationApp({
   id: "ttapdftemplate",
   name: "TTA generate PDF from template",
-  icon: "box",
+  icon: "picture_as_pdf",
   description: "Generate a PDF based on a template trough Text to anything!",
   overview: ({ filename }) => [
     {

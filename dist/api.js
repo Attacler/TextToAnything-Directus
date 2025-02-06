@@ -3,6 +3,7 @@
 var stream = require('stream');
 var require$$1$1 = require('path');
 var require$$6 = require('fs');
+var module$1 = require('module');
 var require$$1 = require('util');
 var require$$3 = require('http');
 var require$$4 = require('https');
@@ -107,7 +108,7 @@ const {isArray: isArray$1} = Array;
  *
  * @returns {boolean} True if the value is undefined, otherwise false
  */
-const isUndefined = typeOfTest('undefined');
+const isUndefined$1 = typeOfTest('undefined');
 
 /**
  * Determine if a value is a Buffer
@@ -117,7 +118,7 @@ const isUndefined = typeOfTest('undefined');
  * @returns {boolean} True if value is a Buffer, otherwise false
  */
 function isBuffer$1(val) {
-  return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor)
+  return val !== null && !isUndefined$1(val) && val.constructor !== null && !isUndefined$1(val.constructor)
     && isFunction$2(val.constructor.isBuffer) && val.constructor.isBuffer(val);
 }
 
@@ -650,7 +651,7 @@ var utils = {
   isBoolean,
   isObject: isObject$1,
   isPlainObject,
-  isUndefined,
+  isUndefined: isUndefined$1,
   isDate,
   isFile,
   isBlob,
@@ -17544,8 +17545,8 @@ axios.formToJSON = thing => {
 };
 
 /*
- * liquidjs@10.7.1, https://github.com/harttle/liquidjs
- * (c) 2016-2023 harttle
+ * liquidjs@10.20.1, https://github.com/harttle/liquidjs
+ * (c) 2016-2025 harttle
  * Released under the MIT License.
  */
 
@@ -17621,8 +17622,32 @@ function stringify(value) {
         return value.map(x => stringify(x)).join('');
     return String(value);
 }
+function toEnumerable(val) {
+    val = toValue(val);
+    if (isArray(val))
+        return val;
+    if (isString(val) && val.length > 0)
+        return [val];
+    if (isIterable(val))
+        return Array.from(val);
+    if (isObject(val))
+        return Object.keys(val).map((key) => [key, val[key]]);
+    return [];
+}
+function toArray(val) {
+    val = toValue(val);
+    if (isNil(val))
+        return [];
+    if (isArray(val))
+        return val;
+    return [val];
+}
 function toValue(value) {
     return (value instanceof Drop && isFunction(value.valueOf)) ? value.valueOf() : value;
+}
+function toNumber(value) {
+    value = Number(value);
+    return isNaN(value) ? 0 : value;
 }
 function isNumber(value) {
     return typeof value === 'number';
@@ -17635,9 +17660,15 @@ function toLiquid(value) {
 function isNil(value) {
     return value == null;
 }
+function isUndefined(value) {
+    return value === undefined;
+}
 function isArray(value) {
     // be compatible with IE 8
     return toString$1.call(value) === '[object Array]';
+}
+function isArrayLike(value) {
+    return value && isNumber(value.length);
 }
 function isIterable(value) {
     return isObject(value) && Symbol.iterator in value;
@@ -17720,30 +17751,55 @@ function caseInsensitiveCompare(a, b) {
     return 0;
 }
 function argumentsToValue(fn) {
-    return (...args) => fn(...args.map(toValue));
+    return function (...args) { return fn.call(this, ...args.map(toValue)); };
 }
 function escapeRegExp(text) {
     return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
+/** Return an array containing unique elements from _array_. Works with nested arrays and objects. */
+function* strictUniq(array) {
+    const seen = new Set();
+    for (const element of array) {
+        const key = JSON.stringify(element);
+        if (!seen.has(key)) {
+            seen.add(key);
+            yield element;
+        }
+    }
+}
 
+/**
+ * targeting ES5, extends Error won't create a proper prototype chain, need a trait to keep track of classes
+ */
+const TRAIT = '__liquidClass__';
 class LiquidError extends Error {
     constructor(err, token) {
-        super(err.message);
-        this.originalError = err;
-        this.token = token;
+        /**
+         * note: for ES5 targeting, `this` will be replaced by return value of Error(),
+         * thus everything on `this` will be lost, avoid calling `LiquidError` methods here
+         */
+        super(typeof err === 'string' ? err : err.message);
         this.context = '';
+        if (typeof err !== 'string')
+            Object.defineProperty(this, 'originalError', { value: err, enumerable: false });
+        Object.defineProperty(this, 'token', { value: token, enumerable: false });
+        Object.defineProperty(this, TRAIT, { value: 'LiquidError', enumerable: false });
     }
     update() {
-        const err = this.originalError;
-        this.context = mkContext(this.token);
-        this.message = mkMessage(err.message, this.token);
+        Object.defineProperty(this, 'context', { value: mkContext(this.token), enumerable: false });
+        this.message = mkMessage(this.message, this.token);
         this.stack = this.message + '\n' + this.context +
-            '\n' + this.stack + '\nFrom ' + err.stack;
+            '\n' + this.stack;
+        if (this.originalError)
+            this.stack += '\nFrom ' + this.originalError.stack;
+    }
+    static is(obj) {
+        return (obj === null || obj === void 0 ? void 0 : obj[TRAIT]) === 'LiquidError';
     }
 }
 class TokenizationError extends LiquidError {
     constructor(message, token) {
-        super(new Error(message), token);
+        super(message, token);
         this.name = 'TokenizationError';
         super.update();
     }
@@ -17765,6 +17821,19 @@ class RenderError extends LiquidError {
     }
     static is(obj) {
         return obj.name === 'RenderError';
+    }
+}
+class LiquidErrors extends LiquidError {
+    constructor(errors) {
+        super(errors[0], errors[0].token);
+        this.errors = errors;
+        this.name = 'LiquidErrors';
+        const s = errors.length > 1 ? 's' : '';
+        this.message = `${errors.length} error${s} found`;
+        super.update();
+    }
+    static is(obj) {
+        return obj.name === 'LiquidErrors';
     }
 }
 class UndefinedVariableError extends LiquidError {
@@ -17792,16 +17861,21 @@ class AssertionError extends Error {
     }
 }
 function mkContext(token) {
-    const [line] = token.getPosition();
+    const [line, col] = token.getPosition();
     const lines = token.input.split('\n');
     const begin = Math.max(line - 2, 1);
     const end = Math.min(line + 3, lines.length);
     const context = range(begin, end + 1)
         .map(lineNumber => {
-        const indicator = (lineNumber === line) ? '>> ' : '   ';
+        const rowIndicator = (lineNumber === line) ? '>> ' : '   ';
         const num = padStart(String(lineNumber), String(end).length);
-        const text = lines[lineNumber - 1];
-        return `${indicator}${num}| ${text}`;
+        let text = `${rowIndicator}${num}| `;
+        const colIndicator = lineNumber === line
+            ? '\n' + padStart('^', col + text.length)
+            : '';
+        text += lines[lineNumber - 1];
+        text += colIndicator;
+        return text;
     })
         .join('\n');
     return context;
@@ -17819,13 +17893,19 @@ function mkMessage(msg, token) {
 // This file is generated by bin/character-gen.js
 // bitmask character types to boost performance
 const TYPES = [0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 4, 4, 4, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 2, 8, 0, 0, 0, 0, 8, 0, 0, 0, 64, 0, 65, 0, 0, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 0, 0, 2, 2, 2, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0];
-const IDENTIFIER = 1;
+const WORD = 1;
 const BLANK = 4;
 const QUOTE = 8;
 const INLINE_BLANK = 16;
 const NUMBER = 32;
 const SIGN = 64;
+const PUNCTUATION = 128;
+function isWord(char) {
+    const code = char.charCodeAt(0);
+    return code >= 128 ? !TYPES[code] : !!(TYPES[code] & WORD);
+}
 TYPES[160] = TYPES[5760] = TYPES[6158] = TYPES[8192] = TYPES[8193] = TYPES[8194] = TYPES[8195] = TYPES[8196] = TYPES[8197] = TYPES[8198] = TYPES[8199] = TYPES[8200] = TYPES[8201] = TYPES[8202] = TYPES[8232] = TYPES[8233] = TYPES[8239] = TYPES[8287] = TYPES[12288] = BLANK;
+TYPES[8220] = TYPES[8221] = PUNCTUATION;
 
 function assert(predicate, message) {
     if (!predicate) {
@@ -17834,6 +17914,9 @@ function assert(predicate, message) {
             : (message || `expect ${predicate} to be true`);
         throw new AssertionError(msg);
     }
+}
+function assertEmpty(predicate, message = `unexpected ${JSON.stringify(predicate)}`) {
+    assert(!predicate, message);
 }
 
 class NullDrop extends Drop {
@@ -17883,6 +17966,9 @@ class EmptyDrop extends Drop {
     valueOf() {
         return '';
     }
+    static is(value) {
+        return value instanceof EmptyDrop;
+    }
 }
 
 class BlankDrop extends EmptyDrop {
@@ -17894,6 +17980,9 @@ class BlankDrop extends EmptyDrop {
         if (isString(value))
             return /^\s*$/.test(value);
         return super.equals(value);
+    }
+    static is(value) {
+        return value instanceof BlankDrop;
     }
 }
 
@@ -17947,7 +18036,12 @@ class BlockDrop extends Drop {
 }
 
 function isComparable(arg) {
-    return arg && isFunction(arg.equals);
+    return (arg &&
+        isFunction(arg.equals) &&
+        isFunction(arg.gt) &&
+        isFunction(arg.geq) &&
+        isFunction(arg.lt) &&
+        isFunction(arg.leq));
 }
 
 const nil = new NullDrop();
@@ -17960,19 +18054,19 @@ const literalValues = {
     'blank': new BlankDrop()
 };
 
-function createTrie(operators) {
+function createTrie(input) {
     const trie = {};
-    for (const [name, handler] of Object.entries(operators)) {
+    for (const [name, data] of Object.entries(input)) {
         let node = trie;
         for (let i = 0; i < name.length; i++) {
             const c = name[i];
             node[c] = node[c] || {};
-            if (i === name.length - 1 && (TYPES[name.charCodeAt(i)] & IDENTIFIER)) {
+            if (i === name.length - 1 && isWord(name[i])) {
                 node[c].needBoundary = true;
             }
             node = node[c];
         }
-        node.handler = handler;
+        node.data = data;
         node.end = true;
     }
     return trie;
@@ -18066,45 +18160,7 @@ function toValueSync(val) {
     return value;
 }
 
-function toEnumerable(val) {
-    val = toValue(val);
-    if (isArray(val))
-        return val;
-    if (isString(val) && val.length > 0)
-        return [val];
-    if (isIterable(val))
-        return Array.from(val);
-    if (isObject(val))
-        return Object.keys(val).map((key) => [key, val[key]]);
-    return [];
-}
-function toArray(val) {
-    if (isNil(val))
-        return [];
-    if (isArray(val))
-        return val;
-    return [val];
-}
-
 const rFormat = /%([-_0^#:]+)?(\d+)?([EO])?(.)/;
-const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-    'September', 'October', 'November', 'December'
-];
-const dayNames = [
-    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-];
-const monthNamesShort = monthNames.map(abbr);
-const dayNamesShort = dayNames.map(abbr);
-const suffixes = {
-    1: 'st',
-    2: 'nd',
-    3: 'rd',
-    'default': 'th'
-};
-function abbr(str) {
-    return str.slice(0, 3);
-}
 // prototype extensions
 function daysInMonth(d) {
     const feb = isLeapYear(d) ? 29 : 28;
@@ -18129,10 +18185,16 @@ function isLeapYear(d) {
     const year = d.getFullYear();
     return !!((year & 3) === 0 && (year % 100 || (year % 400 === 0 && year)));
 }
-function getSuffix(d) {
-    const str = d.getDate().toString();
-    const index = parseInt(str.slice(-1));
-    return suffixes[index] || suffixes['default'];
+function ordinal(d) {
+    const date = d.getDate();
+    if ([11, 12, 13].includes(date))
+        return 'th';
+    switch (date % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+    }
 }
 function century(d) {
     return parseInt(d.getFullYear().toString().substring(0, 2), 10);
@@ -18153,24 +18215,21 @@ const padWidths = {
     U: 2,
     W: 2
 };
-// default to '0'
-const padChars = {
-    a: ' ',
-    A: ' ',
-    b: ' ',
-    B: ' ',
-    c: ' ',
-    e: ' ',
-    k: ' ',
-    l: ' ',
-    p: ' ',
-    P: ' '
-};
+const padSpaceChars = new Set('aAbBceklpP');
+function getTimezoneOffset(d, opts) {
+    const nOffset = Math.abs(d.getTimezoneOffset());
+    const h = Math.floor(nOffset / 60);
+    const m = nOffset % 60;
+    return (d.getTimezoneOffset() > 0 ? '-' : '+') +
+        padStart(h, 2, '0') +
+        (opts.flags[':'] ? ':' : '') +
+        padStart(m, 2, '0');
+}
 const formatCodes = {
-    a: (d) => dayNamesShort[d.getDay()],
-    A: (d) => dayNames[d.getDay()],
-    b: (d) => monthNamesShort[d.getMonth()],
-    B: (d) => monthNames[d.getMonth()],
+    a: (d) => d.getShortWeekdayName(),
+    A: (d) => d.getLongWeekdayName(),
+    b: (d) => d.getShortMonthName(),
+    B: (d) => d.getLongMonthName(),
     c: (d) => d.toLocaleString(),
     C: (d) => century(d),
     d: (d) => d.getDate(),
@@ -18190,7 +18249,7 @@ const formatCodes = {
     },
     p: (d) => (d.getHours() < 12 ? 'AM' : 'PM'),
     P: (d) => (d.getHours() < 12 ? 'am' : 'pm'),
-    q: (d) => getSuffix(d),
+    q: (d) => ordinal(d),
     s: (d) => Math.round(d.getTime() / 1000),
     S: (d) => d.getSeconds(),
     u: (d) => d.getDay() || 7,
@@ -18201,15 +18260,8 @@ const formatCodes = {
     X: (d) => d.toLocaleTimeString(),
     y: (d) => d.getFullYear().toString().slice(2, 4),
     Y: (d) => d.getFullYear(),
-    z: (d, opts) => {
-        const nOffset = Math.abs(d.getTimezoneOffset());
-        const h = Math.floor(nOffset / 60);
-        const m = nOffset % 60;
-        return (d.getTimezoneOffset() > 0 ? '-' : '+') +
-            padStart(h, 2, '0') +
-            (opts.flags[':'] ? ':' : '') +
-            padStart(m, 2, '0');
-    },
+    z: getTimezoneOffset,
+    Z: (d, opts) => d.getTimeZoneName() || getTimezoneOffset(d, opts),
     't': () => '\t',
     'n': () => '\n',
     '%': () => '%'
@@ -18235,7 +18287,7 @@ function format(d, match) {
     for (const flag of flagStr)
         flags[flag] = true;
     let ret = String(convert(d, { flags, width, modifier }));
-    let padChar = padChars[conversion] || '0';
+    let padChar = padSpaceChars.has(conversion) ? ' ' : '0';
     let padWidth = width || padWidths[conversion] || 0;
     if (flags['^'])
         ret = ret.toUpperCase();
@@ -18250,9 +18302,26 @@ function format(d, match) {
     return padStart(ret, padWidth, padChar);
 }
 
+function getDateTimeFormat() {
+    return (typeof Intl !== 'undefined' ? Intl.DateTimeFormat : undefined);
+}
+
 // one minute in milliseconds
 const OneMinute = 60000;
-const ISO8601_TIMEZONE_PATTERN = /([zZ]|([+-])(\d{2}):(\d{2}))$/;
+/**
+ * Need support both ISO8601 and RFC2822 as in major browsers & NodeJS
+ * RFC2822: https://datatracker.ietf.org/doc/html/rfc2822#section-3.3
+ */
+const TIMEZONE_PATTERN = /([zZ]|([+-])(\d{2}):?(\d{2}))$/;
+const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+    'September', 'October', 'November', 'December'
+];
+const monthNamesShort = monthNames.map(name => name.slice(0, 3));
+const dayNames = [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+];
+const dayNamesShort = dayNames.map(name => name.slice(0, 3));
 /**
  * A date implementation with timezone info, just like Ruby date
  *
@@ -18260,12 +18329,17 @@ const ISO8601_TIMEZONE_PATTERN = /([zZ]|([+-])(\d{2}):(\d{2}))$/;
  * - create a Date offset by it's timezone difference, avoiding overriding a bunch of methods
  * - rewrite getTimezoneOffset() to trick strftime
  */
-class TimezoneDate {
-    constructor(init, timezoneOffset) {
-        this.date = init instanceof TimezoneDate
-            ? init.date
-            : new Date(init);
-        this.timezoneOffset = timezoneOffset;
+class LiquidDate {
+    constructor(init, locale, timezone) {
+        this.locale = locale;
+        this.DateTimeFormat = getDateTimeFormat();
+        this.date = new Date(init);
+        this.timezoneFixed = timezone !== undefined;
+        if (timezone === undefined) {
+            timezone = this.date.getTimezoneOffset();
+        }
+        this.timezoneOffset = isString(timezone) ? LiquidDate.getTimezoneOffset(timezone, this.date) : timezone;
+        this.timezoneName = isString(timezone) ? timezone : '';
         const diff = (this.date.getTimezoneOffset() - this.timezoneOffset) * OneMinute;
         const time = this.date.getTime() + diff;
         this.displayDate = new Date(time);
@@ -18312,6 +18386,35 @@ class TimezoneDate {
     getTimezoneOffset() {
         return this.timezoneOffset;
     }
+    getTimeZoneName() {
+        if (this.timezoneFixed)
+            return this.timezoneName;
+        if (!this.DateTimeFormat)
+            return;
+        return this.DateTimeFormat().resolvedOptions().timeZone;
+    }
+    getLongMonthName() {
+        var _a;
+        return (_a = this.format({ month: 'long' })) !== null && _a !== void 0 ? _a : monthNames[this.getMonth()];
+    }
+    getShortMonthName() {
+        var _a;
+        return (_a = this.format({ month: 'short' })) !== null && _a !== void 0 ? _a : monthNamesShort[this.getMonth()];
+    }
+    getLongWeekdayName() {
+        var _a;
+        return (_a = this.format({ weekday: 'long' })) !== null && _a !== void 0 ? _a : dayNames[this.displayDate.getDay()];
+    }
+    getShortWeekdayName() {
+        var _a;
+        return (_a = this.format({ weekday: 'short' })) !== null && _a !== void 0 ? _a : dayNamesShort[this.displayDate.getDay()];
+    }
+    valid() {
+        return !isNaN(this.getTime());
+    }
+    format(options) {
+        return this.DateTimeFormat && this.DateTimeFormat(this.locale, options).format(this.displayDate);
+    }
     /**
      * Create a Date object fixed to it's declared Timezone. Both
      * - 2021-08-06T02:29:00.000Z and
@@ -18325,57 +18428,88 @@ class TimezoneDate {
      * we create a different Date to trick strftime, it's both simpler and more performant.
      * Given that a template is expected to be parsed fewer times than rendered.
      */
-    static createDateFixedToTimezone(dateString) {
-        const m = dateString.match(ISO8601_TIMEZONE_PATTERN);
+    static createDateFixedToTimezone(dateString, locale) {
+        const m = dateString.match(TIMEZONE_PATTERN);
         // representing a UTC timestamp
         if (m && m[1] === 'Z') {
-            return new TimezoneDate(+new Date(dateString), 0);
+            return new LiquidDate(+new Date(dateString), locale, 0);
         }
         // has a timezone specified
         if (m && m[2] && m[3] && m[4]) {
             const [, , sign, hours, minutes] = m;
             const offset = (sign === '+' ? -1 : 1) * (parseInt(hours, 10) * 60 + parseInt(minutes, 10));
-            return new TimezoneDate(+new Date(dateString), offset);
+            return new LiquidDate(+new Date(dateString), locale, offset);
         }
-        return new Date(dateString);
+        return new LiquidDate(dateString, locale);
+    }
+    static getTimezoneOffset(timezoneName, date) {
+        const localDateString = date.toLocaleString('en-US', { timeZone: timezoneName });
+        const utcDateString = date.toLocaleString('en-US', { timeZone: 'UTC' });
+        const localDate = new Date(localDateString);
+        const utcDate = new Date(utcDateString);
+        return (+utcDate - +localDate) / (60 * 1000);
+    }
+}
+
+class Limiter {
+    constructor(resource, limit) {
+        this.base = 0;
+        this.message = `${resource} limit exceeded`;
+        this.limit = limit;
+    }
+    use(count) {
+        count = toNumber(count);
+        assert(this.base + count <= this.limit, this.message);
+        this.base += count;
+    }
+    check(count) {
+        count = toNumber(count);
+        assert(count <= this.limit, this.message);
     }
 }
 
 class DelimitedToken extends Token {
-    constructor(kind, content, input, begin, end, trimLeft, trimRight, file) {
+    constructor(kind, [contentBegin, contentEnd], input, begin, end, trimLeft, trimRight, file) {
         super(kind, input, begin, end, file);
         this.trimLeft = false;
         this.trimRight = false;
-        this.content = this.getText();
-        const tl = content[0] === '-';
-        const tr = last(content) === '-';
-        this.content = content
-            .slice(tl ? 1 : 0, tr ? -1 : content.length)
-            .trim();
+        const tl = input[contentBegin] === '-';
+        const tr = input[contentEnd - 1] === '-';
+        let l = tl ? contentBegin + 1 : contentBegin;
+        let r = tr ? contentEnd - 1 : contentEnd;
+        while (l < r && (TYPES[input.charCodeAt(l)] & BLANK))
+            l++;
+        while (r > l && (TYPES[input.charCodeAt(r - 1)] & BLANK))
+            r--;
+        this.contentRange = [l, r];
         this.trimLeft = tl || trimLeft;
         this.trimRight = tr || trimRight;
+    }
+    get content() {
+        return this.input.slice(this.contentRange[0], this.contentRange[1]);
     }
 }
 
 class TagToken extends DelimitedToken {
     constructor(input, begin, end, options, file) {
         const { trimTagLeft, trimTagRight, tagDelimiterLeft, tagDelimiterRight } = options;
-        const value = input.slice(begin + tagDelimiterLeft.length, end - tagDelimiterRight.length);
-        super(TokenKind.Tag, value, input, begin, end, trimTagLeft, trimTagRight, file);
-        const tokenizer = new Tokenizer(this.content, options.operators);
-        this.name = tokenizer.readTagName();
-        if (!this.name)
-            throw new TokenizationError(`illegal tag syntax`, this);
-        tokenizer.skipBlank();
-        this.args = tokenizer.remaining();
+        const [valueBegin, valueEnd] = [begin + tagDelimiterLeft.length, end - tagDelimiterRight.length];
+        super(TokenKind.Tag, [valueBegin, valueEnd], input, begin, end, trimTagLeft, trimTagRight, file);
+        this.tokenizer = new Tokenizer(input, options.operators, file, this.contentRange);
+        this.name = this.tokenizer.readTagName();
+        this.tokenizer.assert(this.name, `illegal tag syntax, tag name expected`);
+        this.tokenizer.skipBlank();
+    }
+    get args() {
+        return this.tokenizer.input.slice(this.tokenizer.p, this.contentRange[1]);
     }
 }
 
 class OutputToken extends DelimitedToken {
     constructor(input, begin, end, options, file) {
         const { trimOutputLeft, trimOutputRight, outputDelimiterLeft, outputDelimiterRight } = options;
-        const value = input.slice(begin + outputDelimiterLeft.length, end - outputDelimiterRight.length);
-        super(TokenKind.Output, value, input, begin, end, trimOutputLeft, trimOutputRight, file);
+        const valueRange = [begin + outputDelimiterLeft.length, end - outputDelimiterRight.length];
+        super(TokenKind.Output, valueRange, input, begin, end, trimOutputLeft, trimOutputRight, file);
     }
 }
 
@@ -18395,10 +18529,13 @@ class HTMLToken extends Token {
 }
 
 class NumberToken extends Token {
-    constructor(whole, decimal) {
-        super(TokenKind.Number, whole.input, whole.begin, decimal ? decimal.end : whole.end, whole.file);
-        this.whole = whole;
-        this.decimal = decimal;
+    constructor(input, begin, end, file) {
+        super(TokenKind.Number, input, begin, end, file);
+        this.input = input;
+        this.begin = begin;
+        this.end = end;
+        this.file = file;
+        this.content = Number(this.getText());
     }
 }
 
@@ -18411,16 +18548,6 @@ class IdentifierToken extends Token {
         this.file = file;
         this.content = this.getText();
     }
-    isNumber(allowSign = false) {
-        const begin = allowSign && TYPES[this.input.charCodeAt(this.begin)] & SIGN
-            ? this.begin + 1
-            : this.begin;
-        for (let i = begin; i < this.end; i++) {
-            if (!(TYPES[this.input.charCodeAt(i)] & NUMBER))
-                return false;
-        }
-        return true;
-    }
 }
 
 class LiteralToken extends Token {
@@ -18431,6 +18558,7 @@ class LiteralToken extends Token {
         this.end = end;
         this.file = file;
         this.literal = this.getText();
+        this.content = literalValues[this.literal];
     }
 }
 
@@ -18474,13 +18602,10 @@ class OperatorToken extends Token {
 }
 
 class PropertyAccessToken extends Token {
-    constructor(variable, props, end) {
-        super(TokenKind.PropertyAccess, variable.input, variable.begin, end, variable.file);
+    constructor(variable, props, input, begin, end, file) {
+        super(TokenKind.PropertyAccess, input, begin, end, file);
         this.variable = variable;
         this.props = props;
-        this.propertyName = this.variable instanceof IdentifierToken
-            ? this.variable.getText()
-            : parseStringLiteral(this.variable.getText());
     }
 }
 
@@ -18504,6 +18629,59 @@ class HashToken extends Token {
     }
 }
 
+const rHex = /[\da-fA-F]/;
+const rOct = /[0-7]/;
+const escapeChar = {
+    b: '\b',
+    f: '\f',
+    n: '\n',
+    r: '\r',
+    t: '\t',
+    v: '\x0B'
+};
+function hexVal(c) {
+    const code = c.charCodeAt(0);
+    if (code >= 97)
+        return code - 87;
+    if (code >= 65)
+        return code - 55;
+    return code - 48;
+}
+function parseStringLiteral(str) {
+    let ret = '';
+    for (let i = 1; i < str.length - 1; i++) {
+        if (str[i] !== '\\') {
+            ret += str[i];
+            continue;
+        }
+        if (escapeChar[str[i + 1]] !== undefined) {
+            ret += escapeChar[str[++i]];
+        }
+        else if (str[i + 1] === 'u') {
+            let val = 0;
+            let j = i + 2;
+            while (j <= i + 5 && rHex.test(str[j])) {
+                val = val * 16 + hexVal(str[j++]);
+            }
+            i = j - 1;
+            ret += String.fromCharCode(val);
+        }
+        else if (!rOct.test(str[i + 1])) {
+            ret += str[++i];
+        }
+        else {
+            let j = i + 1;
+            let val = 0;
+            while (j <= i + 3 && rOct.test(str[j])) {
+                val = val * 8 + hexVal(str[j++]);
+            }
+            i = j - 1;
+            ret += String.fromCharCode(val);
+        }
+    }
+    return ret;
+}
+
 class QuotedToken extends Token {
     constructor(input, begin, end, file) {
         super(TokenKind.Quoted, input, begin, end, file);
@@ -18511,6 +18689,7 @@ class QuotedToken extends Token {
         this.begin = begin;
         this.end = end;
         this.file = file;
+        this.content = parseStringLiteral(this.getText());
     }
 }
 
@@ -18526,24 +18705,46 @@ class RangeToken extends Token {
     }
 }
 
+/**
+ * LiquidTagToken is different from TagToken by not having delimiters `{%` or `%}`
+ */
 class LiquidTagToken extends DelimitedToken {
     constructor(input, begin, end, options, file) {
-        const value = input.slice(begin, end);
-        super(TokenKind.Tag, value, input, begin, end, false, false, file);
-        if (!/\S/.test(value)) {
-            // A line that contains only whitespace.
-            this.name = '';
-            this.args = '';
-        }
-        else {
-            const tokenizer = new Tokenizer(this.content, options.operators);
-            this.name = tokenizer.readTagName();
-            if (!this.name)
-                throw new TokenizationError(`illegal liquid tag syntax`, this);
-            tokenizer.skipBlank();
-            this.args = tokenizer.remaining();
-        }
+        super(TokenKind.Tag, [begin, end], input, begin, end, false, false, file);
+        this.tokenizer = new Tokenizer(input, options.operators, file, this.contentRange);
+        this.name = this.tokenizer.readTagName();
+        this.tokenizer.assert(this.name, 'illegal liquid tag syntax');
+        this.tokenizer.skipBlank();
     }
+    get args() {
+        return this.tokenizer.input.slice(this.tokenizer.p, this.contentRange[1]);
+    }
+}
+
+/**
+ * value expression with optional filters
+ * e.g.
+ * {% assign foo="bar" | append: "coo" %}
+ */
+class FilteredValueToken extends Token {
+    constructor(initial, filters, input, begin, end, file) {
+        super(TokenKind.FilteredValue, input, begin, end, file);
+        this.initial = initial;
+        this.filters = filters;
+        this.input = input;
+        this.begin = begin;
+        this.end = end;
+        this.file = file;
+    }
+}
+
+const polyfill = {
+    now: () => Date.now()
+};
+function getPerformance() {
+    return (typeof global === 'object' && global.performance) ||
+        (typeof window === 'object' && window.performance) ||
+        polyfill;
 }
 
 class SimpleEmitter {
@@ -18601,19 +18802,27 @@ class Render {
         if (!emitter) {
             emitter = ctx.opts.keepOutputType ? new KeepingTypeEmitter() : new SimpleEmitter();
         }
+        const errors = [];
         for (const tpl of templates) {
+            ctx.renderLimit.check(getPerformance().now());
             try {
                 // if tpl.render supports emitter, it'll return empty `html`
                 const html = yield tpl.render(ctx, emitter);
                 // if not, it'll return an `html`, write to the emitter for it
                 html && emitter.write(html);
-                if (emitter['break'] || emitter['continue'])
+                if (ctx.breakCalled || ctx.continueCalled)
                     break;
             }
             catch (e) {
-                const err = RenderError.is(e) ? e : new RenderError(e, tpl);
-                throw err;
+                const err = LiquidError.is(e) ? e : new RenderError(e, tpl);
+                if (ctx.opts.catchAllErrors)
+                    errors.push(err);
+                else
+                    throw err;
             }
+        }
+        if (errors.length) {
+            throw new LiquidErrors(errors);
         }
         return emitter.buffer;
     }
@@ -18640,25 +18849,24 @@ class Expression {
                 operands.push(result);
             }
             else {
-                operands.push(yield evalToken(token, ctx, lenient && this.postfix.length === 1));
+                operands.push(yield evalToken(token, ctx, lenient));
             }
         }
         return operands[0];
     }
+    valid() {
+        return !!this.postfix.length;
+    }
 }
 function* evalToken(token, ctx, lenient = false) {
+    if (!token)
+        return;
+    if ('content' in token)
+        return token.content;
     if (isPropertyAccessToken(token))
         return yield evalPropertyAccessToken(token, ctx, lenient);
     if (isRangeToken(token))
         return yield evalRangeToken(token, ctx);
-    if (isLiteralToken(token))
-        return evalLiteralToken(token);
-    if (isNumberToken(token))
-        return evalNumberToken(token);
-    if (isWordToken(token))
-        return token.getText();
-    if (isQuotedToken(token))
-        return evalQuotedToken(token);
 }
 function* evalPropertyAccessToken(token, ctx, lenient) {
     const props = [];
@@ -18666,7 +18874,13 @@ function* evalPropertyAccessToken(token, ctx, lenient) {
         props.push((yield evalToken(prop, ctx, false)));
     }
     try {
-        return yield ctx._get([token.propertyName, ...props]);
+        if (token.variable) {
+            const variable = yield evalToken(token.variable, ctx, lenient);
+            return yield ctx._getFromScope(variable, props);
+        }
+        else {
+            return yield ctx._get(props);
+        }
     }
     catch (e) {
         if (lenient && e.name === 'InternalUndefinedVariableError')
@@ -18674,19 +18888,13 @@ function* evalPropertyAccessToken(token, ctx, lenient) {
         throw (new UndefinedVariableError(e, token));
     }
 }
-function evalNumberToken(token) {
-    const str = token.whole.content + '.' + (token.decimal ? token.decimal.content : '');
-    return Number(str);
-}
 function evalQuotedToken(token) {
-    return parseStringLiteral(token.getText());
-}
-function evalLiteralToken(token) {
-    return literalValues[token.literal];
+    return token.content;
 }
 function* evalRangeToken(token, ctx) {
     const low = yield evalToken(token.lhs, ctx);
     const high = yield evalToken(token.rhs, ctx);
+    ctx.memoryLimit.use(high - low + 1);
     return range(+low, +high + 1);
 }
 function* toPostfix(tokens) {
@@ -18710,6 +18918,7 @@ function isTruthy(val, ctx) {
     return !isFalsy(val, ctx);
 }
 function isFalsy(val, ctx) {
+    val = toValue(val);
     if (ctx.opts.jsTruthy) {
         return !val;
     }
@@ -18719,8 +18928,8 @@ function isFalsy(val, ctx) {
 }
 
 const defaultOperators = {
-    '==': equal,
-    '!=': (l, r) => !equal(l, r),
+    '==': equals,
+    '!=': (l, r) => !equals(l, r),
     '>': (l, r) => {
         if (isComparable(l))
             return l.gt(r);
@@ -18751,14 +18960,17 @@ const defaultOperators = {
     },
     'contains': (l, r) => {
         l = toValue(l);
-        r = toValue(r);
-        return l && isFunction(l.indexOf) ? l.indexOf(r) > -1 : false;
+        if (isArray(l))
+            return l.some((i) => equals(i, r));
+        if (isFunction(l === null || l === void 0 ? void 0 : l.indexOf))
+            return l.indexOf(toValue(r)) > -1;
+        return false;
     },
     'not': (v, ctx) => isFalsy(toValue(v), ctx),
     'and': (l, r, ctx) => isTruthy(toValue(l), ctx) && isTruthy(toValue(r), ctx),
     'or': (l, r, ctx) => isTruthy(toValue(l), ctx) || isTruthy(toValue(r), ctx)
 };
-function equal(lhs, rhs) {
+function equals(lhs, rhs) {
     if (isComparable(lhs))
         return lhs.equals(rhs);
     if (isComparable(rhs))
@@ -18766,14 +18978,17 @@ function equal(lhs, rhs) {
     lhs = toValue(lhs);
     rhs = toValue(rhs);
     if (isArray(lhs)) {
-        return isArray(rhs) && arrayEqual(lhs, rhs);
+        return isArray(rhs) && arrayEquals(lhs, rhs);
     }
     return lhs === rhs;
 }
-function arrayEqual(lhs, rhs) {
+function arrayEquals(lhs, rhs) {
     if (lhs.length !== rhs.length)
         return false;
-    return !lhs.some((value, i) => !equal(value, rhs[i]));
+    return !lhs.some((value, i) => !equals(value, rhs[i]));
+}
+function arrayIncludes(arr, item) {
+    return arr.some(value => equals(value, item));
 }
 
 class Node {
@@ -18834,7 +19049,10 @@ class LRU {
     }
 }
 
-const requireResolve = require.resolve;
+function requireResolve (file) {
+  const require = module$1.createRequire(process.cwd() + '/');
+  return require.resolve(file)
+}
 
 const statAsync = promisify(require$$6.stat);
 const readFileAsync = promisify(require$$6.readFile);
@@ -18897,7 +19115,7 @@ var fs = /*#__PURE__*/Object.freeze({
   sep: require$$1$1.sep
 });
 
-function Default(value, defaultValue, ...args) {
+function defaultFilter(value, defaultValue, ...args) {
     value = toValue(value);
     if (isArray(value) || isString(value))
         return value.length ? value : defaultValue;
@@ -18908,9 +19126,34 @@ function Default(value, defaultValue, ...args) {
 function json(value, space = 0) {
     return JSON.stringify(value, null, space);
 }
+function inspect(value, space = 0) {
+    const ancestors = [];
+    return JSON.stringify(value, function (_key, value) {
+        if (typeof value !== 'object' || value === null)
+            return value;
+        // `this` is the object that value is contained in, i.e., its direct parent.
+        while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this)
+            ancestors.pop();
+        if (ancestors.includes(value))
+            return '[Circular]';
+        ancestors.push(value);
+        return value;
+    }, space);
+}
+function to_integer(value) {
+    return Number(value);
+}
 const raw = {
     raw: true,
     handler: identify
+};
+var misc = {
+    default: defaultFilter,
+    raw,
+    jsonify: json,
+    to_integer,
+    json,
+    inspect
 };
 
 const escapeMap = {
@@ -18928,28 +19171,88 @@ const unescapeMap = {
     '&#39;': "'"
 };
 function escape(str) {
-    return stringify(str).replace(/&|<|>|"|'/g, m => escapeMap[m]);
+    str = stringify(str);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/&|<|>|"|'/g, m => escapeMap[m]);
+}
+function xml_escape(str) {
+    return escape.call(this, str);
 }
 function unescape$1(str) {
-    return stringify(str).replace(/&(amp|lt|gt|#34|#39);/g, m => unescapeMap[m]);
+    str = stringify(str);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/&(amp|lt|gt|#34|#39);/g, m => unescapeMap[m]);
 }
 function escape_once(str) {
-    return escape(unescape$1(stringify(str)));
+    return escape.call(this, unescape$1.call(this, str));
 }
 function newline_to_br(v) {
-    return stringify(v).replace(/\n/g, '<br />\n');
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/\r?\n/gm, '<br />\n');
 }
 function strip_html(v) {
-    return stringify(v).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<.*?>|<!--[\s\S]*?-->/g, '');
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<.*?>|<!--[\s\S]*?-->/g, '');
 }
 
 var htmlFilters = /*#__PURE__*/Object.freeze({
   __proto__: null,
   escape: escape,
+  xml_escape: xml_escape,
   escape_once: escape_once,
   newline_to_br: newline_to_br,
   strip_html: strip_html
 });
+
+class MapFS {
+    constructor(mapping) {
+        this.mapping = mapping;
+        this.sep = '/';
+    }
+    exists(filepath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.existsSync(filepath);
+        });
+    }
+    existsSync(filepath) {
+        return !isNil(this.mapping[filepath]);
+    }
+    readFile(filepath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.readFileSync(filepath);
+        });
+    }
+    readFileSync(filepath) {
+        const content = this.mapping[filepath];
+        if (isNil(content))
+            throw new Error(`ENOENT: ${filepath}`);
+        return content;
+    }
+    dirname(filepath) {
+        const segments = filepath.split(this.sep);
+        segments.pop();
+        return segments.join(this.sep);
+    }
+    resolve(dir, file, ext) {
+        file += ext;
+        if (dir === '.')
+            return file;
+        const segments = dir.split(/\/+/);
+        for (const segment of file.split(this.sep)) {
+            if (segment === '.' || segment === '')
+                continue;
+            else if (segment === '..') {
+                if (segments.length > 1 || segments[0] !== '')
+                    segments.pop();
+            }
+            else
+                segments.push(segment);
+        }
+        return segments.join(this.sep);
+    }
+}
 
 const defaultOptions = {
     root: ['.'],
@@ -18957,12 +19260,14 @@ const defaultOptions = {
     partials: ['.'],
     relativeReference: true,
     jekyllInclude: false,
+    keyValueSeparator: ':',
     cache: undefined,
     extname: '',
     fs: fs,
     dynamicPartials: true,
     jsTruthy: false,
     dateFormat: '%A, %B %-e, %Y at %-l:%M %P %z',
+    locale: '',
     trimTagRight: false,
     trimTagLeft: false,
     trimOutputRight: false,
@@ -18979,9 +19284,13 @@ const defaultOptions = {
     lenientIf: false,
     globals: {},
     keepOutputType: false,
-    operators: defaultOperators
+    operators: defaultOperators,
+    memoryLimit: Infinity,
+    parseLimit: Infinity,
+    renderLimit: Infinity
 };
 function normalize(options) {
+    var _a, _b;
     if (options.hasOwnProperty('root')) {
         if (!options.hasOwnProperty('partials'))
             options.partials = options.root;
@@ -19007,13 +19316,21 @@ function normalize(options) {
     options.partials = normalizeDirectoryList(options.partials);
     options.layouts = normalizeDirectoryList(options.layouts);
     options.outputEscape = options.outputEscape && getOutputEscapeFunction(options.outputEscape);
+    if (!options.locale) {
+        options.locale = (_b = (_a = getDateTimeFormat()) === null || _a === void 0 ? void 0 : _a().resolvedOptions().locale) !== null && _b !== void 0 ? _b : 'en-US';
+    }
+    if (options.templates) {
+        options.fs = new MapFS(options.templates);
+        options.relativeReference = true;
+        options.root = options.partials = options.layouts = '.';
+    }
     return options;
 }
 function getOutputEscapeFunction(nameOrFunction) {
     if (nameOrFunction === 'escape')
         return escape;
     if (nameOrFunction === 'json')
-        return json;
+        return misc.json;
     assert(isFunction(nameOrFunction), '`outputEscape` need to be of type string or function');
     return nameOrFunction;
 }
@@ -19024,22 +19341,6 @@ function normalizeDirectoryList(value) {
     if (isString(value))
         list = [value];
     return list;
-}
-
-function matchOperator(str, begin, trie, end = str.length) {
-    let node = trie;
-    let i = begin;
-    let info;
-    while (node[str[i]] && i < end) {
-        node = node[str[i++]];
-        if (node['end'])
-            info = node;
-    }
-    if (!info)
-        return -1;
-    if (info['needBoundary'] && (TYPES[str.charCodeAt(i)] & IDENTIFIER))
-        return -1;
-    return i;
 }
 
 function whiteSpaceCtrl(tokens, options) {
@@ -19080,13 +19381,14 @@ function trimRight(token, greedy) {
 }
 
 class Tokenizer {
-    constructor(input, operators = defaultOptions.operators, file) {
+    constructor(input, operators = defaultOptions.operators, file, range) {
         this.input = input;
         this.file = file;
-        this.p = 0;
         this.rawBeginAt = -1;
-        this.N = input.length;
+        this.p = range ? range[0] : 0;
+        this.N = range ? range[1] : input.length;
         this.opTrie = createTrie(operators);
+        this.literalTrie = createTrie(literalValues);
     }
     readExpression() {
         return new Expression(this.readExpressionTokens());
@@ -19108,10 +19410,32 @@ class Tokenizer {
     }
     readOperator() {
         this.skipBlank();
-        const end = matchOperator(this.input, this.p, this.opTrie);
+        const end = this.matchTrie(this.opTrie);
         if (end === -1)
             return;
         return new OperatorToken(this.input, this.p, (this.p = end), this.file);
+    }
+    matchTrie(trie) {
+        let node = trie;
+        let i = this.p;
+        let info;
+        while (node[this.input[i]] && i < this.N) {
+            node = node[this.input[i++]];
+            if (node['end'])
+                info = node;
+        }
+        if (!info)
+            return -1;
+        if (info['needBoundary'] && isWord(this.peek(i - this.p)))
+            return -1;
+        return i;
+    }
+    readFilteredValue() {
+        const begin = this.p;
+        const initial = this.readExpression();
+        this.assert(initial.valid(), `invalid value expression: ${this.snapshot()}`);
+        const filters = this.readFilters();
+        return new FilteredValueToken(initial, filters, this.input, begin, this.p, this.file);
     }
     readFilters() {
         const filters = [];
@@ -19126,12 +19450,12 @@ class Tokenizer {
         this.skipBlank();
         if (this.end())
             return null;
-        assert(this.peek() === '|', () => `unexpected token at ${this.snapshot()}`);
-        this.p++;
-        const begin = this.p;
+        this.assert(this.read() === '|', `expected "|" before filter`);
         const name = this.readIdentifier();
-        if (!name.size())
+        if (!name.size()) {
+            this.assert(this.end(), `expected filter name`);
             return null;
+        }
         const args = [];
         this.skipBlank();
         if (this.peek() === ':') {
@@ -19140,10 +19464,14 @@ class Tokenizer {
                 const arg = this.readFilterArg();
                 arg && args.push(arg);
                 this.skipBlank();
-                assert(this.end() || this.peek() === ',' || this.peek() === '|', () => `unexpected character ${this.snapshot()}`);
+                this.assert(this.end() || this.peek() === ',' || this.peek() === '|', () => `unexpected character ${this.snapshot()}`);
             } while (this.peek() === ',');
         }
-        return new FilterToken(name.getText(), args, this.input, begin, this.p, this.file);
+        else if (this.peek() === '|' || this.end()) ;
+        else {
+            throw this.error('expected ":" after filter name');
+        }
+        return new FilterToken(name.getText(), args, this.input, name.begin, this.p, this.file);
     }
     readFilterArg() {
         const key = this.readValue();
@@ -19184,20 +19512,21 @@ class Tokenizer {
         }
         return new HTMLToken(this.input, begin, this.p, this.file);
     }
-    readTagToken(options = defaultOptions) {
+    readTagToken(options) {
         const { file, input } = this;
         const begin = this.p;
         if (this.readToDelimiter(options.tagDelimiterRight) === -1) {
-            throw this.mkError(`tag ${this.snapshot(begin)} not closed`, begin);
+            throw this.error(`tag ${this.snapshot(begin)} not closed`, begin);
         }
         const token = new TagToken(input, begin, this.p, options, file);
         if (token.name === 'raw')
             this.rawBeginAt = begin;
         return token;
     }
-    readToDelimiter(delimiter) {
+    readToDelimiter(delimiter, respectQuoted = false) {
+        this.skipBlank();
         while (this.p < this.N) {
-            if ((this.peekType() & QUOTE)) {
+            if (respectQuoted && (this.peekType() & QUOTE)) {
                 this.readQuoted();
                 continue;
             }
@@ -19211,8 +19540,8 @@ class Tokenizer {
         const { file, input } = this;
         const { outputDelimiterRight } = options;
         const begin = this.p;
-        if (this.readToDelimiter(outputDelimiterRight) === -1) {
-            throw this.mkError(`output ${this.snapshot(begin)} not closed`, begin);
+        if (this.readToDelimiter(outputDelimiterRight, true) === -1) {
+            throw this.error(`output ${this.snapshot(begin)} not closed`, begin);
         }
         return new OutputToken(input, begin, this.p, options, file);
     }
@@ -19242,30 +19571,34 @@ class Tokenizer {
                 this.p++;
             }
         }
-        throw this.mkError(`raw ${this.snapshot(this.rawBeginAt)} not closed`, begin);
+        throw this.error(`raw ${this.snapshot(this.rawBeginAt)} not closed`, begin);
     }
     readLiquidTagTokens(options = defaultOptions) {
         const tokens = [];
         while (this.p < this.N) {
             const token = this.readLiquidTagToken(options);
-            if (token.name)
-                tokens.push(token);
+            token && tokens.push(token);
         }
         return tokens;
     }
     readLiquidTagToken(options) {
-        const { file, input } = this;
+        this.skipBlank();
+        if (this.end())
+            return;
         const begin = this.p;
-        let end = this.N;
-        if (this.readToDelimiter('\n') !== -1)
-            end = this.p;
-        return new LiquidTagToken(input, begin, end, options, file);
+        this.readToDelimiter('\n');
+        const end = this.p;
+        return new LiquidTagToken(this.input, begin, end, options, this.file);
     }
-    mkError(msg, begin) {
-        return new TokenizationError(msg, new IdentifierToken(this.input, begin, this.N, this.file));
+    error(msg, pos = this.p) {
+        return new TokenizationError(msg, new IdentifierToken(this.input, pos, this.N, this.file));
+    }
+    assert(pred, msg, pos) {
+        if (!pred)
+            throw this.error(typeof msg === 'function' ? msg() : msg, pos);
     }
     snapshot(begin = this.p) {
-        return JSON.stringify(ellipsis(this.input.slice(begin), 16));
+        return JSON.stringify(ellipsis(this.input.slice(begin, this.N), 32));
     }
     /**
      * @deprecated use #readIdentifier instead
@@ -19276,9 +19609,13 @@ class Tokenizer {
     readIdentifier() {
         this.skipBlank();
         const begin = this.p;
-        while (this.peekType() & IDENTIFIER)
+        while (!this.end() && isWord(this.peek()))
             ++this.p;
         return new IdentifierToken(this.input, begin, this.p, this.file);
+    }
+    readNonEmptyIdentifier() {
+        const id = this.readIdentifier();
+        return id.size() ? id : undefined;
     }
     readTagName() {
         this.skipBlank();
@@ -19301,12 +19638,12 @@ class Tokenizer {
         if (this.peek() === ',')
             ++this.p;
         const begin = this.p;
-        const name = this.readIdentifier();
-        if (!name.size())
+        const name = this.readNonEmptyIdentifier();
+        if (!name)
             return;
         let value;
         this.skipBlank();
-        const sep = jekyllStyle ? '=' : ':';
+        const sep = isString(jekyllStyle) ? jekyllStyle : (jekyllStyle ? '=' : ':');
         if (this.peek() === sep) {
             ++this.p;
             value = this.readValue();
@@ -19314,13 +19651,16 @@ class Tokenizer {
         return new HashToken(this.input, begin, this.p, name, value, this.file);
     }
     remaining() {
-        return this.input.slice(this.p);
+        return this.input.slice(this.p, this.N);
     }
-    advance(i = 1) {
-        this.p += i;
+    advance(step = 1) {
+        this.p += step;
     }
     end() {
         return this.p >= this.N;
+    }
+    read() {
+        return this.input[this.p++];
     }
     readTo(end) {
         while (this.p < this.N) {
@@ -19331,50 +19671,86 @@ class Tokenizer {
         return -1;
     }
     readValue() {
-        const value = this.readQuoted() || this.readRange();
-        if (value)
-            return value;
-        if (this.peek() === '[') {
-            this.p++;
-            const prop = this.readQuoted();
-            if (!prop)
-                return;
-            if (this.peek() !== ']')
-                return;
-            this.p++;
-            return new PropertyAccessToken(prop, [], this.p);
-        }
-        const variable = this.readIdentifier();
-        if (!variable.size())
-            return;
-        let isNumber = variable.isNumber(true);
+        this.skipBlank();
+        const begin = this.p;
+        const variable = this.readLiteral() || this.readQuoted() || this.readRange() || this.readNumber();
+        const props = this.readProperties(!variable);
+        if (!props.length)
+            return variable;
+        return new PropertyAccessToken(variable, props, this.input, begin, this.p);
+    }
+    readScopeValue() {
+        this.skipBlank();
+        const begin = this.p;
+        const props = this.readProperties();
+        if (!props.length)
+            return undefined;
+        return new PropertyAccessToken(undefined, props, this.input, begin, this.p);
+    }
+    readProperties(isBegin = true) {
         const props = [];
         while (true) {
             if (this.peek() === '[') {
-                isNumber = false;
                 this.p++;
                 const prop = this.readValue() || new IdentifierToken(this.input, this.p, this.p, this.file);
-                this.readTo(']');
+                this.assert(this.readTo(']') !== -1, '[ not closed');
                 props.push(prop);
+                continue;
             }
-            else if (this.peek() === '.' && this.peek(1) !== '.') { // skip range syntax
+            if (isBegin && !props.length) {
+                const prop = this.readNonEmptyIdentifier();
+                if (prop) {
+                    props.push(prop);
+                    continue;
+                }
+            }
+            if (this.peek() === '.' && this.peek(1) !== '.') { // skip range syntax
                 this.p++;
-                const prop = this.readIdentifier();
-                if (!prop.size())
+                const prop = this.readNonEmptyIdentifier();
+                if (!prop)
                     break;
-                if (!prop.isNumber())
-                    isNumber = false;
                 props.push(prop);
+                continue;
+            }
+            break;
+        }
+        return props;
+    }
+    readNumber() {
+        this.skipBlank();
+        let decimalFound = false;
+        let digitFound = false;
+        let n = 0;
+        if (this.peekType() & SIGN)
+            n++;
+        while (this.p + n <= this.N) {
+            if (this.peekType(n) & NUMBER) {
+                digitFound = true;
+                n++;
+            }
+            else if (this.peek(n) === '.' && this.peek(n + 1) !== '.') {
+                if (decimalFound || !digitFound)
+                    return;
+                decimalFound = true;
+                n++;
             }
             else
                 break;
         }
-        if (!props.length && literalValues.hasOwnProperty(variable.content)) {
-            return new LiteralToken(this.input, variable.begin, variable.end, this.file);
+        if (digitFound && !isWord(this.peek(n))) {
+            const num = new NumberToken(this.input, this.p, this.p + n, this.file);
+            this.advance(n);
+            return num;
         }
-        if (isNumber)
-            return new NumberToken(variable, props[0]);
-        return new PropertyAccessToken(variable, props, this.p);
+    }
+    readLiteral() {
+        this.skipBlank();
+        const end = this.matchTrie(this.literalTrie);
+        if (end === -1)
+            return;
+        const literal = new LiteralToken(this.input, this.p, end, this.file);
+        this.p = end;
+        return literal;
     }
     readRange() {
         this.skipBlank();
@@ -19390,7 +19766,7 @@ class Tokenizer {
     }
     readValueOrThrow() {
         const value = this.readValue();
-        assert(value, () => `unexpected token ${this.snapshot()}, value expected`);
+        this.assert(value, () => `unexpected token ${this.snapshot()}, value expected`);
         return value;
     }
     readQuoted() {
@@ -19437,10 +19813,10 @@ class Tokenizer {
         return true;
     }
     peekType(n = 0) {
-        return TYPES[this.input.charCodeAt(this.p + n)];
+        return this.p + n >= this.N ? 0 : TYPES[this.input.charCodeAt(this.p + n)];
     }
     peek(n = 0) {
-        return this.input[this.p + n];
+        return this.p + n >= this.N ? '' : this.input[this.p + n];
     }
     skipBlank() {
         while (this.peekType() & BLANK)
@@ -19496,6 +19872,7 @@ class Tag extends TemplateImpl {
         super(token);
         this.name = token.name;
         this.liquid = liquid;
+        this.tokenizer = token.tokenizer;
     }
 }
 
@@ -19508,9 +19885,9 @@ class Tag extends TemplateImpl {
  *    hash['reversed'] === undefined
  */
 class Hash {
-    constructor(markup, jekyllStyle) {
+    constructor(input, jekyllStyle) {
         this.hash = {};
-        const tokenizer = new Tokenizer(markup, {});
+        const tokenizer = input instanceof Tokenizer ? input : new Tokenizer(input, {});
         for (const hash of tokenizer.readHashes(jekyllStyle)) {
             this.hash[hash.name.content] = hash.value;
         }
@@ -19533,7 +19910,7 @@ function createTagClass(options) {
             }
         }
         *render(ctx, emitter) {
-            const hash = (yield new Hash(this.token.args).render(ctx));
+            const hash = (yield new Hash(this.token.args, ctx.opts.keyValueSeparator).render(ctx));
             return yield options.render.call(this, ctx, emitter, hash);
         }
     };
@@ -19544,13 +19921,14 @@ function isKeyValuePair(arr) {
 }
 
 class Filter {
-    constructor(name, options, args, liquid) {
-        this.name = name;
+    constructor(token, options, liquid) {
+        this.token = token;
+        this.name = token.name;
         this.handler = isFunction(options)
             ? options
             : (isFunction(options === null || options === void 0 ? void 0 : options.handler) ? options.handler : identify);
         this.raw = !isFunction(options) && !!(options === null || options === void 0 ? void 0 : options.raw);
-        this.args = args;
+        this.args = token.args;
         this.liquid = liquid;
     }
     *render(value, context) {
@@ -19561,7 +19939,7 @@ class Filter {
             else
                 argv.push(yield evalToken(arg, context));
         }
-        return this.handler.apply({ context, liquid: this.liquid }, [value, ...argv]);
+        return yield this.handler.apply({ context, token: this.token, liquid: this.liquid }, [value, ...argv]);
     }
 }
 
@@ -19569,11 +19947,13 @@ class Value {
     /**
      * @param str the value to be valuated, eg.: "foobar" | truncate: 3
      */
-    constructor(str, liquid) {
+    constructor(input, liquid) {
         this.filters = [];
-        const tokenizer = new Tokenizer(str, liquid.options.operators);
-        this.initial = tokenizer.readExpression();
-        this.filters = tokenizer.readFilters().map(({ name, args }) => new Filter(name, this.getFilter(liquid, name), args, liquid));
+        const token = typeof input === 'string'
+            ? new Tokenizer(input, liquid.options.operators).readFilteredValue()
+            : input;
+        this.initial = token.initial;
+        this.filters = token.filters.map(token => new Filter(token, this.getFilter(liquid, token.name), liquid));
     }
     *value(ctx, lenient) {
         lenient = lenient || (ctx.opts.lenientIf && this.filters.length > 0 && this.filters[0].name === 'default');
@@ -19594,16 +19974,21 @@ class Output extends TemplateImpl {
     constructor(token, liquid) {
         var _a;
         super(token);
-        this.value = new Value(token.content, liquid);
+        const tokenizer = new Tokenizer(token.input, liquid.options.operators, token.file, token.contentRange);
+        this.value = new Value(tokenizer.readFilteredValue(), liquid);
         const filters = this.value.filters;
         const outputEscape = liquid.options.outputEscape;
         if (!((_a = filters[filters.length - 1]) === null || _a === void 0 ? void 0 : _a.raw) && outputEscape) {
-            filters.push(new Filter(toString.call(outputEscape), outputEscape, [], liquid));
+            const token = new FilterToken(toString.call(outputEscape), [], '', 0, 0);
+            filters.push(new Filter(token, outputEscape, liquid));
         }
     }
     *render(ctx, emitter) {
         const val = yield this.value.value(ctx, false);
         emitter.write(val);
+    }
+    *arguments() {
+        yield this.value;
     }
 }
 
@@ -19615,6 +20000,336 @@ class HTML extends TemplateImpl {
     *render(ctx, emitter) {
         emitter.write(this.str);
     }
+}
+
+/**
+ * A variable's segments and location, which can be coerced to a string.
+ */
+class Variable {
+    constructor(segments, location) {
+        this.segments = segments;
+        this.location = location;
+    }
+    toString() {
+        return segmentsString(this.segments, true);
+    }
+    /** Return this variable's segments as an array, possibly with nested arrays for nested paths. */
+    toArray() {
+        function* _visit(...segments) {
+            for (const segment of segments) {
+                if (segment instanceof Variable) {
+                    yield Array.from(_visit(...segment.segments));
+                }
+                else {
+                    yield segment;
+                }
+            }
+        }
+        return Array.from(_visit(...this.segments));
+    }
+}
+/**
+ * Group variables by the string representation of their root segment.
+ */
+class VariableMap {
+    constructor() {
+        this.map = new Map();
+    }
+    get(key) {
+        const k = segmentsString([key.segments[0]]);
+        if (!this.map.has(k)) {
+            this.map.set(k, []);
+        }
+        return this.map.get(k);
+    }
+    has(key) {
+        return this.map.has(segmentsString([key.segments[0]]));
+    }
+    push(variable) {
+        this.get(variable).push(variable);
+    }
+    asObject() {
+        return Object.fromEntries(this.map);
+    }
+}
+const defaultStaticAnalysisOptions = {
+    partials: true
+};
+function* _analyze(templates, partials, sync) {
+    const variables = new VariableMap();
+    const globals = new VariableMap();
+    const locals = new VariableMap();
+    const rootScope = new DummyScope(new Set());
+    // Names of partial templates that we've already analyzed.
+    const seen = new Set();
+    function updateVariables(variable, scope) {
+        variables.push(variable);
+        const aliased = scope.alias(variable);
+        if (aliased !== undefined) {
+            const root = aliased.segments[0];
+            // TODO: What if a a template renders a rendered template? Do we need scope.parent?
+            if (isString(root) && !rootScope.has(root)) {
+                globals.push(aliased);
+            }
+        }
+        else {
+            const root = variable.segments[0];
+            if (isString(root) && !scope.has(root)) {
+                globals.push(variable);
+            }
+        }
+        // Recurse for nested Variables
+        for (const segment of variable.segments) {
+            if (segment instanceof Variable) {
+                updateVariables(segment, scope);
+            }
+        }
+    }
+    function* visit(template, scope) {
+        if (template.arguments) {
+            for (const arg of template.arguments()) {
+                for (const variable of extractVariables(arg)) {
+                    updateVariables(variable, scope);
+                }
+            }
+        }
+        if (template.localScope) {
+            for (const ident of template.localScope()) {
+                scope.add(ident.content);
+                scope.deleteAlias(ident.content);
+                const [row, col] = ident.getPosition();
+                locals.push(new Variable([ident.content], { row, col, file: ident.file }));
+            }
+        }
+        if (template.children) {
+            if (template.partialScope) {
+                const partial = template.partialScope();
+                if (partial === undefined) {
+                    // Layouts, for example, can have children that are not partials.
+                    for (const child of (yield template.children(partials, sync))) {
+                        yield visit(child, scope);
+                    }
+                    return;
+                }
+                if (seen.has(partial.name))
+                    return;
+                const partialScopeNames = new Set();
+                const partialScope = partial.isolated
+                    ? new DummyScope(partialScopeNames)
+                    : scope.push(partialScopeNames);
+                for (const name of partial.scope) {
+                    if (isString(name)) {
+                        partialScopeNames.add(name);
+                    }
+                    else {
+                        const [alias, argument] = name;
+                        partialScopeNames.add(alias);
+                        const variables = Array.from(extractVariables(argument));
+                        if (variables.length) {
+                            partialScope.setAlias(alias, variables[0].segments);
+                        }
+                    }
+                }
+                for (const child of (yield template.children(partials, sync))) {
+                    yield visit(child, partialScope);
+                    seen.add(partial.name);
+                }
+                partialScope.pop();
+            }
+            else {
+                if (template.blockScope) {
+                    scope.push(new Set(template.blockScope()));
+                }
+                for (const child of (yield template.children(partials, sync))) {
+                    yield visit(child, scope);
+                }
+                if (template.blockScope) {
+                    scope.pop();
+                }
+            }
+        }
+    }
+    for (const template of templates) {
+        yield visit(template, rootScope);
+    }
+    return {
+        variables: variables.asObject(),
+        globals: globals.asObject(),
+        locals: locals.asObject()
+    };
+}
+/**
+ * Statically analyze a template and report variable usage.
+ */
+function analyze(template, options = {}) {
+    const opts = Object.assign(Object.assign({}, defaultStaticAnalysisOptions), options);
+    return toPromise(_analyze(template, opts.partials, false));
+}
+/**
+ * Statically analyze a template and report variable usage.
+ */
+function analyzeSync(template, options = {}) {
+    const opts = Object.assign(Object.assign({}, defaultStaticAnalysisOptions), options);
+    return toValueSync(_analyze(template, opts.partials, true));
+}
+/**
+ * A stack to manage scopes while traversing templates during static analysis.
+ */
+class DummyScope {
+    constructor(globals) {
+        this.stack = [{ names: globals, aliases: new Map() }];
+    }
+    /** Return true if `name` is in scope.  */
+    has(name) {
+        for (const scope of this.stack) {
+            if (scope.names.has(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    push(scope) {
+        this.stack.push({ names: scope, aliases: new Map() });
+        return this;
+    }
+    pop() {
+        var _a;
+        return (_a = this.stack.pop()) === null || _a === void 0 ? void 0 : _a.names;
+    }
+    // Add a name to the template scope.
+    add(name) {
+        this.stack[0].names.add(name);
+    }
+    /** Return the variable that `variable` aliases, or `variable` if it doesn't alias anything. */
+    alias(variable) {
+        const root = variable.segments[0];
+        if (!isString(root))
+            return undefined;
+        const alias = this.getAlias(root);
+        if (alias === undefined)
+            return undefined;
+        return new Variable([...alias, ...variable.segments.slice(1)], variable.location);
+    }
+    // TODO: `from` could be a path with multiple segments, like `include.x`.
+    setAlias(from, to) {
+        this.stack[this.stack.length - 1].aliases.set(from, to);
+    }
+    deleteAlias(name) {
+        this.stack[this.stack.length - 1].aliases.delete(name);
+    }
+    getAlias(name) {
+        for (const scope of this.stack) {
+            if (scope.aliases.has(name)) {
+                return scope.aliases.get(name);
+            }
+            // If a scope has defined `name`, then it masks aliases in parent scopes.
+            if (scope.names.has(name)) {
+                return undefined;
+            }
+        }
+        return undefined;
+    }
+}
+function* extractVariables(value) {
+    if (isValueToken(value)) {
+        yield* extractValueTokenVariables(value);
+    }
+    else if (value instanceof Value) {
+        yield* extractFilteredValueVariables(value);
+    }
+}
+function* extractFilteredValueVariables(value) {
+    for (const token of value.initial.postfix) {
+        if (isValueToken(token)) {
+            yield* extractValueTokenVariables(token);
+        }
+    }
+    for (const filter of value.filters) {
+        for (const arg of filter.args) {
+            if (isKeyValuePair(arg) && arg[1]) {
+                yield* extractValueTokenVariables(arg[1]);
+            }
+            else if (isValueToken(arg)) {
+                yield* extractValueTokenVariables(arg);
+            }
+        }
+    }
+}
+function* extractValueTokenVariables(token) {
+    if (isRangeToken(token)) {
+        yield* extractValueTokenVariables(token.lhs);
+        yield* extractValueTokenVariables(token.rhs);
+    }
+    else if (isPropertyAccessToken(token)) {
+        yield extractPropertyAccessVariable(token);
+    }
+}
+function extractPropertyAccessVariable(token) {
+    const segments = [];
+    // token is not guaranteed to have `file` set. We'll try to get it from a prop if not.
+    let file = token.file;
+    // Here we're flattening the first segment of a path if it is a nested path.
+    const root = token.props[0];
+    file = file || root.file;
+    if (isQuotedToken(root) || isNumberToken(root) || isWordToken(root)) {
+        segments.push(root.content);
+    }
+    else if (isPropertyAccessToken(root)) {
+        // Flatten paths that start with a nested path.
+        segments.push(...extractPropertyAccessVariable(root).segments);
+    }
+    for (const prop of token.props.slice(1)) {
+        file = file || prop.file;
+        if (isQuotedToken(prop) || isNumberToken(prop) || isWordToken(prop)) {
+            segments.push(prop.content);
+        }
+        else if (isPropertyAccessToken(prop)) {
+            segments.push(extractPropertyAccessVariable(prop));
+        }
+    }
+    const [row, col] = token.getPosition();
+    return new Variable(segments, {
+        row,
+        col,
+        file
+    });
+}
+// This is used to detect segments that can be represented with dot notation
+// when creating a string representation of VariableSegments.
+const RE_PROPERTY = /^[\u0080-\uFFFFa-zA-Z_][\u0080-\uFFFFa-zA-Z0-9_-]*$/;
+/**
+ * Return a string representation of segments using dot notation where possible.
+ * @param segments - The property names and array indices that make up a path to a variable.
+ * @param bracketedRoot - If false (the default), don't surround the root segment with square brackets.
+ */
+function segmentsString(segments, bracketedRoot = false) {
+    const buf = [];
+    const root = segments[0];
+    if (isString(root)) {
+        if (!bracketedRoot || root.match(RE_PROPERTY)) {
+            buf.push(`${root}`);
+        }
+        else {
+            buf.push(`['${root}']`);
+        }
+    }
+    for (const segment of segments.slice(1)) {
+        if (segment instanceof Variable) {
+            buf.push(`[${segmentsString(segment.segments)}]`);
+        }
+        else if (isString(segment)) {
+            if (segment.match(RE_PROPERTY)) {
+                buf.push(`.${segment}`);
+            }
+            else {
+                buf.push(`['${segment}']`);
+            }
+        }
+        else {
+            buf.push(`[${segment}]`);
+        }
+    }
+    return buf.join('');
 }
 
 var LookupType;
@@ -19633,7 +20348,7 @@ class Loader {
             this.shouldLoadRelative = (referencedFile) => rRelativePath.test(referencedFile);
         }
         else {
-            this.shouldLoadRelative = (referencedFile) => false;
+            this.shouldLoadRelative = (_referencedFile) => false;
         }
         this.contains = this.options.fs.contains || (() => true);
     }
@@ -19690,8 +20405,11 @@ class Parser {
         this.fs = this.liquid.options.fs;
         this.parseFile = this.cache ? this._parseFileCached : this._parseFile;
         this.loader = new Loader(this.liquid.options);
+        this.parseLimit = new Limiter('parse length', liquid.options.parseLimit);
     }
     parse(html, filepath) {
+        html = String(html);
+        this.parseLimit.use(html.length);
         const tokenizer = new Tokenizer(html, this.liquid.options.operators, filepath);
         const tokens = tokenizer.readTopLevelTokens(this.liquid.options);
         return this.parseTokens(tokens);
@@ -19699,9 +20417,20 @@ class Parser {
     parseTokens(tokens) {
         let token;
         const templates = [];
+        const errors = [];
         while ((token = tokens.shift())) {
-            templates.push(this.parseToken(token, tokens));
+            try {
+                templates.push(this.parseToken(token, tokens));
+            }
+            catch (err) {
+                if (this.liquid.options.catchAllErrors)
+                    errors.push(err);
+                else
+                    throw err;
+            }
         }
+        if (errors.length)
+            throw new LiquidErrors(errors);
         return templates;
     }
     parseToken(token, remainTokens) {
@@ -19709,7 +20438,7 @@ class Parser {
             if (isTagToken(token)) {
                 const TagClass = this.liquid.tags[token.name];
                 assert(TagClass, `tag "${token.name}" not found`);
-                return new TagClass(token, remainTokens, this.liquid);
+                return new TagClass(token, remainTokens, this.liquid, this);
             }
             if (isOutputToken(token)) {
                 return new Output(token, this.liquid);
@@ -19717,6 +20446,8 @@ class Parser {
             return new HTML(token);
         }
         catch (e) {
+            if (LiquidError.is(e))
+                throw e;
             throw new ParseError(e, token);
         }
     }
@@ -19745,61 +20476,8 @@ class Parser {
     }
     *_parseFile(file, sync, type = LookupType.Root, currentFile) {
         const filepath = yield this.loader.lookup(file, type, sync, currentFile);
-        return this.liquid.parse(sync ? this.fs.readFileSync(filepath) : yield this.fs.readFile(filepath), filepath);
+        return this.parse(sync ? this.fs.readFileSync(filepath) : yield this.fs.readFile(filepath), filepath);
     }
-}
-
-const rHex = /[\da-fA-F]/;
-const rOct = /[0-7]/;
-const escapeChar = {
-    b: '\b',
-    f: '\f',
-    n: '\n',
-    r: '\r',
-    t: '\t',
-    v: '\x0B'
-};
-function hexVal(c) {
-    const code = c.charCodeAt(0);
-    if (code >= 97)
-        return code - 87;
-    if (code >= 65)
-        return code - 55;
-    return code - 48;
-}
-function parseStringLiteral(str) {
-    let ret = '';
-    for (let i = 1; i < str.length - 1; i++) {
-        if (str[i] !== '\\') {
-            ret += str[i];
-            continue;
-        }
-        if (escapeChar[str[i + 1]] !== undefined) {
-            ret += escapeChar[str[++i]];
-        }
-        else if (str[i + 1] === 'u') {
-            let val = 0;
-            let j = i + 2;
-            while (j <= i + 5 && rHex.test(str[j])) {
-                val = val * 16 + hexVal(str[j++]);
-            }
-            i = j - 1;
-            ret += String.fromCharCode(val);
-        }
-        else if (!rOct.test(str[i + 1])) {
-            ret += str[++i];
-        }
-        else {
-            let j = i + 1;
-            let val = 0;
-            while (j <= i + 3 && rOct.test(str[j])) {
-                val = val * 8 + hexVal(str[j++]);
-            }
-            i = j - 1;
-            ret += String.fromCharCode(val);
-        }
-    }
-    return ret;
 }
 
 var TokenKind;
@@ -19816,6 +20494,7 @@ var TokenKind;
     TokenKind[TokenKind["Range"] = 512] = "Range";
     TokenKind[TokenKind["Quoted"] = 1024] = "Quoted";
     TokenKind[TokenKind["Operator"] = 2048] = "Operator";
+    TokenKind[TokenKind["FilteredValue"] = 4096] = "FilteredValue";
     TokenKind[TokenKind["Delimited"] = 12] = "Delimited";
 })(TokenKind || (TokenKind = {}));
 
@@ -19837,9 +20516,6 @@ function isTagToken(val) {
 function isQuotedToken(val) {
     return getKind(val) === TokenKind.Quoted;
 }
-function isLiteralToken(val) {
-    return getKind(val) === TokenKind.Literal;
-}
 function isNumberToken(val) {
     return getKind(val) === TokenKind.Number;
 }
@@ -19852,25 +20528,33 @@ function isWordToken(val) {
 function isRangeToken(val) {
     return getKind(val) === TokenKind.Range;
 }
+function isValueToken(val) {
+    // valueTokenBitMask = TokenKind.Number | TokenKind.Literal | TokenKind.Quoted | TokenKind.PropertyAccess | TokenKind.Range
+    return (getKind(val) & 1667) > 0;
+}
 function getKind(val) {
     return val ? val.kind : -1;
 }
 
 class Context {
-    constructor(env = {}, opts = defaultOptions, renderOptions = {}) {
-        var _a, _b, _c;
+    constructor(env = {}, opts = defaultOptions, renderOptions = {}, { memoryLimit, renderLimit } = {}) {
+        var _a, _b, _c, _d, _e;
         /**
          * insert a Context-level empty scope,
          * for tags like `{% capture %}` `{% assign %}` to operate
          */
         this.scopes = [{}];
         this.registers = {};
+        this.breakCalled = false;
+        this.continueCalled = false;
         this.sync = !!renderOptions.sync;
         this.opts = opts;
         this.globals = (_a = renderOptions.globals) !== null && _a !== void 0 ? _a : opts.globals;
-        this.environments = env;
+        this.environments = isObject(env) ? env : Object(env);
         this.strictVariables = (_b = renderOptions.strictVariables) !== null && _b !== void 0 ? _b : this.opts.strictVariables;
         this.ownPropertyOnly = (_c = renderOptions.ownPropertyOnly) !== null && _c !== void 0 ? _c : opts.ownPropertyOnly;
+        this.memoryLimit = memoryLimit !== null && memoryLimit !== void 0 ? memoryLimit : new Limiter('memory alloc', (_d = renderOptions.memoryLimit) !== null && _d !== void 0 ? _d : opts.memoryLimit);
+        this.renderLimit = renderLimit !== null && renderLimit !== void 0 ? renderLimit : new Limiter('template render', getPerformance().now() + ((_e = renderOptions.renderLimit) !== null && _e !== void 0 ? _e : opts.renderLimit));
     }
     getRegister(key) {
         return (this.registers[key] = this.registers[key] || {});
@@ -19898,7 +20582,7 @@ class Context {
         return toValueSync(this._get(paths));
     }
     *_get(paths) {
-        const scope = this.findScope(paths[0]);
+        const scope = this.findScope(paths[0]); // first prop should always be a string
         return yield this._getFromScope(scope, paths);
     }
     /**
@@ -19907,12 +20591,12 @@ class Context {
     getFromScope(scope, paths) {
         return toValueSync(this._getFromScope(scope, paths));
     }
-    *_getFromScope(scope, paths) {
+    *_getFromScope(scope, paths, strictVariables = this.strictVariables) {
         if (isString(paths))
             paths = paths.split('.');
         for (let i = 0; i < paths.length; i++) {
             scope = yield readProperty(scope, paths[i], this.ownPropertyOnly);
-            if (isNil(scope) && this.strictVariables) {
+            if (strictVariables && isUndefined(scope)) {
                 throw new InternalUndefinedVariableError(paths.slice(0, i + 1).join('.'));
             }
         }
@@ -19927,6 +20611,16 @@ class Context {
     bottom() {
         return this.scopes[0];
     }
+    spawn(scope = {}) {
+        return new Context(scope, this.opts, {
+            sync: this.sync,
+            globals: this.globals,
+            strictVariables: this.strictVariables
+        }, {
+            renderLimit: this.renderLimit,
+            memoryLimit: this.memoryLimit
+        });
+    }
     findScope(key) {
         for (let i = this.scopes.length - 1; i >= 0; i--) {
             const candidate = this.scopes[i];
@@ -19940,6 +20634,7 @@ class Context {
 }
 function readProperty(obj, key, ownPropertyOnly) {
     obj = toLiquid(obj);
+    key = toValue(key);
     if (isNil(obj))
         return obj;
     if (isArray(obj) && key < 0)
@@ -19958,7 +20653,7 @@ function readProperty(obj, key, ownPropertyOnly) {
     return value;
 }
 function readJSProperty(obj, key, ownPropertyOnly) {
-    if (ownPropertyOnly && !Object.hasOwnProperty.call(obj, key) && !(obj instanceof Drop))
+    if (ownPropertyOnly && !hasOwnProperty.call(obj, key) && !(obj instanceof Drop))
         return undefined;
     return obj[key];
 }
@@ -19973,7 +20668,7 @@ function readLast(obj) {
     return obj['last'];
 }
 function readSize(obj) {
-    if (obj.hasOwnProperty('size') || obj['size'] !== undefined)
+    if (hasOwnProperty.call(obj, 'size') || obj['size'] !== undefined)
         return obj['size'];
     if (isArray(obj) || isString(obj))
         return obj.length;
@@ -20025,25 +20720,83 @@ var mathFilters = /*#__PURE__*/Object.freeze({
   plus: plus
 });
 
-const url_decode = (x) => stringify(x).split('+').map(decodeURIComponent).join(' ');
-const url_encode = (x) => stringify(x).split(' ').map(encodeURIComponent).join('+');
+const url_decode = (x) => decodeURIComponent(stringify(x)).replace(/\+/g, ' ');
+const url_encode = (x) => encodeURIComponent(stringify(x)).replace(/%20/g, '+');
+const cgi_escape = (x) => encodeURIComponent(stringify(x))
+    .replace(/%20/g, '+')
+    .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+const uri_escape = (x) => encodeURI(stringify(x))
+    .replace(/%5B/g, '[')
+    .replace(/%5D/g, ']');
+const rSlugifyDefault = /[^\p{M}\p{L}\p{Nd}]+/ug;
+const rSlugifyReplacers = {
+    'raw': /\s+/g,
+    'default': rSlugifyDefault,
+    'pretty': /[^\p{M}\p{L}\p{Nd}._~!$&'()+,;=@]+/ug,
+    'ascii': /[^A-Za-z0-9]+/g,
+    'latin': rSlugifyDefault,
+    'none': null
+};
+function slugify(str, mode = 'default', cased = false) {
+    str = stringify(str);
+    const replacer = rSlugifyReplacers[mode];
+    if (replacer) {
+        if (mode === 'latin')
+            str = removeAccents(str);
+        str = str.replace(replacer, '-').replace(/^-|-$/g, '');
+    }
+    return cased ? str : str.toLowerCase();
+}
+function removeAccents(str) {
+    return str.replace(/[àáâãäå]/g, 'a')
+        .replace(/[æ]/g, 'ae')
+        .replace(/[ç]/g, 'c')
+        .replace(/[èéêë]/g, 'e')
+        .replace(/[ìíîï]/g, 'i')
+        .replace(/[ð]/g, 'd')
+        .replace(/[ñ]/g, 'n')
+        .replace(/[òóôõöø]/g, 'o')
+        .replace(/[ùúûü]/g, 'u')
+        .replace(/[ýÿ]/g, 'y')
+        .replace(/[ß]/g, 'ss')
+        .replace(/[œ]/g, 'oe')
+        .replace(/[þ]/g, 'th')
+        .replace(/[ẞ]/g, 'SS')
+        .replace(/[Œ]/g, 'OE')
+        .replace(/[Þ]/g, 'TH');
+}
 
 var urlFilters = /*#__PURE__*/Object.freeze({
   __proto__: null,
   url_decode: url_decode,
-  url_encode: url_encode
+  url_encode: url_encode,
+  cgi_escape: cgi_escape,
+  uri_escape: uri_escape,
+  slugify: slugify
 });
 
-const join = argumentsToValue((v, arg) => toArray(v).join(arg === undefined ? ' ' : arg));
-const last$1 = argumentsToValue((v) => isArray(v) ? last(v) : '');
-const first = argumentsToValue((v) => isArray(v) ? v[0] : '');
-const reverse = argumentsToValue((v) => [...toArray(v)].reverse());
+const join = argumentsToValue(function (v, arg) {
+    const array = toArray(v);
+    const sep = isNil(arg) ? ' ' : stringify(arg);
+    const complexity = array.length * (1 + sep.length);
+    this.context.memoryLimit.use(complexity);
+    return array.join(sep);
+});
+const last$1 = argumentsToValue((v) => isArrayLike(v) ? last(v) : '');
+const first = argumentsToValue((v) => isArrayLike(v) ? v[0] : '');
+const reverse = argumentsToValue(function (v) {
+    const array = toArray(v);
+    this.context.memoryLimit.use(array.length);
+    return [...array].reverse();
+});
 function* sort(arr, property) {
     const values = [];
-    for (const item of toArray(toValue(arr))) {
+    const array = toArray(arr);
+    this.context.memoryLimit.use(array.length);
+    for (const item of array) {
         values.push([
             item,
-            property ? yield this.context._getFromScope(item, stringify(property).split('.')) : item
+            property ? yield this.context._getFromScope(item, stringify(property).split('.'), false) : item
         ]);
     }
     return values.sort((lhs, rhs) => {
@@ -20053,29 +20806,65 @@ function* sort(arr, property) {
     }).map(tuple => tuple[0]);
 }
 function sort_natural(input, property) {
-    input = toValue(input);
     const propertyString = stringify(property);
     const compare = property === undefined
         ? caseInsensitiveCompare
         : (lhs, rhs) => caseInsensitiveCompare(lhs[propertyString], rhs[propertyString]);
-    return [...toArray(input)].sort(compare);
+    const array = toArray(input);
+    this.context.memoryLimit.use(array.length);
+    return [...array].sort(compare);
 }
 const size = (v) => (v && v.length) || 0;
 function* map(arr, property) {
     const results = [];
-    for (const item of toArray(toValue(arr))) {
-        results.push(yield this.context._getFromScope(item, stringify(property).split('.')));
+    const array = toArray(arr);
+    this.context.memoryLimit.use(array.length);
+    for (const item of array) {
+        results.push(yield this.context._getFromScope(item, stringify(property), false));
     }
     return results;
 }
+function* sum(arr, property) {
+    let sum = 0;
+    const array = toArray(arr);
+    for (const item of array) {
+        const data = Number(property ? yield this.context._getFromScope(item, stringify(property), false) : item);
+        sum += Number.isNaN(data) ? 0 : data;
+    }
+    return sum;
+}
 function compact(arr) {
-    arr = toValue(arr);
-    return toArray(arr).filter(x => !isNil(toValue(x)));
+    const array = toArray(arr);
+    this.context.memoryLimit.use(array.length);
+    return array.filter(x => !isNil(toValue(x)));
 }
 function concat(v, arg = []) {
-    v = toValue(v);
-    arg = toArray(arg).map(v => toValue(v));
-    return toArray(v).concat(arg);
+    const lhs = toArray(v);
+    const rhs = toArray(arg);
+    this.context.memoryLimit.use(lhs.length + rhs.length);
+    return lhs.concat(rhs);
+}
+function push(v, arg) {
+    return concat.call(this, v, [arg]);
+}
+function unshift(v, arg) {
+    const array = toArray(v);
+    this.context.memoryLimit.use(array.length);
+    const clone = [...array];
+    clone.unshift(arg);
+    return clone;
+}
+function pop(v) {
+    const clone = [...toArray(v)];
+    clone.pop();
+    return clone;
+}
+function shift(v) {
+    const array = toArray(v);
+    this.context.memoryLimit.use(array.length);
+    const clone = [...array];
+    clone.shift();
+    return clone;
 }
 function slice(v, begin, length = 1) {
     v = toValue(v);
@@ -20084,31 +20873,98 @@ function slice(v, begin, length = 1) {
     if (!isArray(v))
         v = stringify(v);
     begin = begin < 0 ? v.length + begin : begin;
+    this.context.memoryLimit.use(length);
     return v.slice(begin, begin + length);
 }
 function* where(arr, property, expected) {
     const values = [];
-    arr = toArray(toValue(arr));
+    arr = toArray(arr);
+    this.context.memoryLimit.use(arr.length);
+    const token = new Tokenizer(stringify(property)).readScopeValue();
     for (const item of arr) {
-        values.push(yield this.context._getFromScope(item, stringify(property).split('.')));
+        values.push(yield evalToken(token, this.context.spawn(item)));
     }
+    const matcher = this.context.opts.jekyllWhere
+        ? (v) => EmptyDrop.is(expected) ? equals(v, expected) : (isArray(v) ? arrayIncludes(v, expected) : equals(v, expected))
+        : (v) => equals(v, expected);
     return arr.filter((_, i) => {
         if (expected === undefined)
             return isTruthy(values[i], this.context);
-        if (isComparable(expected))
-            return expected.equals(values[i]);
-        return values[i] === expected;
+        return matcher(values[i]);
     });
 }
+function* where_exp(arr, itemName, exp) {
+    const filtered = [];
+    const keyTemplate = new Value(stringify(exp), this.liquid);
+    const array = toArray(arr);
+    this.context.memoryLimit.use(array.length);
+    for (const item of array) {
+        const value = yield keyTemplate.value(this.context.spawn({ [itemName]: item }));
+        if (value)
+            filtered.push(item);
+    }
+    return filtered;
+}
+function* group_by(arr, property) {
+    const map = new Map();
+    arr = toEnumerable(arr);
+    const token = new Tokenizer(stringify(property)).readScopeValue();
+    this.context.memoryLimit.use(arr.length);
+    for (const item of arr) {
+        const key = yield evalToken(token, this.context.spawn(item));
+        if (!map.has(key))
+            map.set(key, []);
+        map.get(key).push(item);
+    }
+    return [...map.entries()].map(([name, items]) => ({ name, items }));
+}
+function* group_by_exp(arr, itemName, exp) {
+    const map = new Map();
+    const keyTemplate = new Value(stringify(exp), this.liquid);
+    arr = toEnumerable(arr);
+    this.context.memoryLimit.use(arr.length);
+    for (const item of arr) {
+        const key = yield keyTemplate.value(this.context.spawn({ [itemName]: item }));
+        if (!map.has(key))
+            map.set(key, []);
+        map.get(key).push(item);
+    }
+    return [...map.entries()].map(([name, items]) => ({ name, items }));
+}
+function* find(arr, property, expected) {
+    const token = new Tokenizer(stringify(property)).readScopeValue();
+    const array = toArray(arr);
+    for (const item of array) {
+        const value = yield evalToken(token, this.context.spawn(item));
+        if (equals(value, expected))
+            return item;
+    }
+}
+function* find_exp(arr, itemName, exp) {
+    const predicate = new Value(stringify(exp), this.liquid);
+    const array = toArray(arr);
+    for (const item of array) {
+        const value = yield predicate.value(this.context.spawn({ [itemName]: item }));
+        if (value)
+            return item;
+    }
+}
 function uniq(arr) {
-    arr = toValue(arr);
-    const u = {};
-    return (arr || []).filter(val => {
-        if (hasOwnProperty.call(u, String(val)))
-            return false;
-        u[String(val)] = true;
-        return true;
-    });
+    arr = toArray(arr);
+    this.context.memoryLimit.use(arr.length);
+    return [...new Set(arr)];
+}
+function sample(v, count = 1) {
+    v = toValue(v);
+    if (isNil(v))
+        return [];
+    if (!isArray(v))
+        v = stringify(v);
+    this.context.memoryLimit.use(count);
+    const shuffled = [...v].sort(() => Math.random() - 0.5);
+    if (count === 1)
+        return shuffled[0];
+    return shuffled.slice(0, count);
 }
 
 var arrayFilters = /*#__PURE__*/Object.freeze({
@@ -20121,69 +20977,94 @@ var arrayFilters = /*#__PURE__*/Object.freeze({
   sort_natural: sort_natural,
   size: size,
   map: map,
+  sum: sum,
   compact: compact,
   concat: concat,
+  push: push,
+  unshift: unshift,
+  pop: pop,
+  shift: shift,
   slice: slice,
   where: where,
-  uniq: uniq
+  where_exp: where_exp,
+  group_by: group_by,
+  group_by_exp: group_by_exp,
+  find: find,
+  find_exp: find_exp,
+  uniq: uniq,
+  sample: sample
 });
 
 function date(v, format, timezoneOffset) {
-    const opts = this.context.opts;
-    let date;
-    v = toValue(v);
+    var _a, _b, _c;
+    const size = ((_a = v === null || v === void 0 ? void 0 : v.length) !== null && _a !== void 0 ? _a : 0) + ((_b = format === null || format === void 0 ? void 0 : format.length) !== null && _b !== void 0 ? _b : 0) + ((_c = timezoneOffset === null || timezoneOffset === void 0 ? void 0 : timezoneOffset.length) !== null && _c !== void 0 ? _c : 0);
+    this.context.memoryLimit.use(size);
+    const date = parseDate(v, this.context.opts, timezoneOffset);
+    if (!date)
+        return v;
     format = toValue(format);
-    if (isNil(format))
-        format = opts.dateFormat;
-    else
-        format = stringify(format);
+    format = isNil(format) ? this.context.opts.dateFormat : stringify(format);
+    return strftime(date, format);
+}
+function date_to_xmlschema(v) {
+    return date.call(this, v, '%Y-%m-%dT%H:%M:%S%:z');
+}
+function date_to_rfc822(v) {
+    return date.call(this, v, '%a, %d %b %Y %H:%M:%S %z');
+}
+function date_to_string(v, type, style) {
+    return stringify_date.call(this, v, '%b', type, style);
+}
+function date_to_long_string(v, type, style) {
+    return stringify_date.call(this, v, '%B', type, style);
+}
+function stringify_date(v, month_type, type, style) {
+    const date = parseDate(v, this.context.opts);
+    if (!date)
+        return v;
+    if (type === 'ordinal') {
+        const d = date.getDate();
+        return style === 'US'
+            ? strftime(date, `${month_type} ${d}%q, %Y`)
+            : strftime(date, `${d}%q ${month_type} %Y`);
+    }
+    return strftime(date, `%d ${month_type} %Y`);
+}
+function parseDate(v, opts, timezoneOffset) {
+    let date;
+    const defaultTimezoneOffset = timezoneOffset !== null && timezoneOffset !== void 0 ? timezoneOffset : opts.timezoneOffset;
+    const locale = opts.locale;
+    v = toValue(v);
     if (v === 'now' || v === 'today') {
-        date = new Date();
+        date = new LiquidDate(Date.now(), locale, defaultTimezoneOffset);
     }
     else if (isNumber(v)) {
-        date = new Date(v * 1000);
+        date = new LiquidDate(v * 1000, locale, defaultTimezoneOffset);
     }
     else if (isString(v)) {
         if (/^\d+$/.test(v)) {
-            date = new Date(+v * 1000);
+            date = new LiquidDate(+v * 1000, locale, defaultTimezoneOffset);
         }
-        else if (opts.preserveTimezones) {
-            date = TimezoneDate.createDateFixedToTimezone(v);
+        else if (opts.preserveTimezones && timezoneOffset === undefined) {
+            date = LiquidDate.createDateFixedToTimezone(v, locale);
         }
         else {
-            date = new Date(v);
+            date = new LiquidDate(v, locale, defaultTimezoneOffset);
         }
     }
     else {
-        date = v;
+        date = new LiquidDate(v, locale, defaultTimezoneOffset);
     }
-    if (!isValidDate(date))
-        return v;
-    if (timezoneOffset !== undefined) {
-        date = new TimezoneDate(date, parseTimezoneOffset(date, timezoneOffset));
-    }
-    else if (!(date instanceof TimezoneDate) && opts.timezoneOffset !== undefined) {
-        date = new TimezoneDate(date, parseTimezoneOffset(date, opts.timezoneOffset));
-    }
-    return strftime(date, format);
-}
-function isValidDate(date) {
-    return (date instanceof Date || date instanceof TimezoneDate) && !isNaN(date.getTime());
-}
-/**
- * need pass in a `date` because offset is dependent on whether DST is active
- */
-function parseTimezoneOffset(date, timeZone) {
-    if (isNumber(timeZone))
-        return timeZone;
-    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const tzDate = new Date(date.toLocaleString('en-US', { timeZone }));
-    return (utcDate.getTime() - tzDate.getTime()) / 6e4;
+    return date.valid() ? date : undefined;
 }
 
 var dateFilters = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  date: date
+  date: date,
+  date_to_xmlschema: date_to_xmlschema,
+  date_to_rfc822: date_to_rfc822,
+  date_to_string: date_to_string,
+  date_to_long_string: date_to_long_string
 });
 
 /**
@@ -20191,50 +21072,74 @@ var dateFilters = /*#__PURE__*/Object.freeze({
  *
  * * prefer stringify() to String() since `undefined`, `null` should eval ''
  */
+const rCJKWord = /[\u4E00-\u9FFF\uF900-\uFAFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/gu;
+// Word boundary followed by word characters (for detecting words)
+const rNonCJKWord = /[^\u4E00-\u9FFF\uF900-\uFAFF\u3400-\u4DBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\s]+/gu;
 function append(v, arg) {
     assert(arguments.length === 2, 'append expect 2 arguments');
-    return stringify(v) + stringify(arg);
+    const lhs = stringify(v);
+    const rhs = stringify(arg);
+    this.context.memoryLimit.use(lhs.length + rhs.length);
+    return lhs + rhs;
 }
 function prepend(v, arg) {
     assert(arguments.length === 2, 'prepend expect 2 arguments');
-    return stringify(arg) + stringify(v);
+    const lhs = stringify(v);
+    const rhs = stringify(arg);
+    this.context.memoryLimit.use(lhs.length + rhs.length);
+    return rhs + lhs;
 }
 function lstrip(v, chars) {
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
     if (chars) {
         chars = escapeRegExp(stringify(chars));
-        return stringify(v).replace(new RegExp(`^[${chars}]+`, 'g'), '');
+        return str.replace(new RegExp(`^[${chars}]+`, 'g'), '');
     }
-    return stringify(v).replace(/^\s+/, '');
+    return str.replace(/^\s+/, '');
 }
 function downcase(v) {
-    return stringify(v).toLowerCase();
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.toLowerCase();
 }
-function upcase(str) {
+function upcase(v) {
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
     return stringify(str).toUpperCase();
 }
 function remove(v, arg) {
-    return stringify(v).split(String(arg)).join('');
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.split(stringify(arg)).join('');
 }
 function remove_first(v, l) {
-    return stringify(v).replace(String(l), '');
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(stringify(l), '');
 }
 function remove_last(v, l) {
     const str = stringify(v);
-    const pattern = String(l);
+    this.context.memoryLimit.use(str.length);
+    const pattern = stringify(l);
     const index = str.lastIndexOf(pattern);
     if (index === -1)
         return str;
-    return str.substring(0, index) + str.substring(index + pattern.length + 1);
+    return str.substring(0, index) + str.substring(index + pattern.length);
 }
 function rstrip(str, chars) {
+    str = stringify(str);
+    this.context.memoryLimit.use(str.length);
     if (chars) {
         chars = escapeRegExp(stringify(chars));
-        return stringify(str).replace(new RegExp(`[${chars}]+$`, 'g'), '');
+        return str.replace(new RegExp(`[${chars}]+$`, 'g'), '');
     }
-    return stringify(str).replace(/\s+$/, '');
+    return str.replace(/\s+$/, '');
 }
 function split(v, arg) {
-    const arr = stringify(v).split(String(arg));
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    const arr = str.split(stringify(arg));
     // align to ruby split, which is the behavior of shopify/liquid
     // see: https://ruby-doc.org/core-2.4.0/String.html#method-i-split
     while (arr.length && arr[arr.length - 1] === '')
@@ -20242,50 +21147,101 @@ function split(v, arg) {
     return arr;
 }
 function strip(v, chars) {
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
     if (chars) {
         chars = escapeRegExp(stringify(chars));
-        return stringify(v)
+        return str
             .replace(new RegExp(`^[${chars}]+`, 'g'), '')
             .replace(new RegExp(`[${chars}]+$`, 'g'), '');
     }
-    return stringify(v).trim();
+    return str.trim();
 }
 function strip_newlines(v) {
-    return stringify(v).replace(/\n/g, '');
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/\r?\n/gm, '');
 }
 function capitalize(str) {
     str = stringify(str);
+    this.context.memoryLimit.use(str.length);
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 function replace(v, pattern, replacement) {
-    return stringify(v).split(String(pattern)).join(replacement);
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.split(stringify(pattern)).join(replacement);
 }
 function replace_first(v, arg1, arg2) {
-    return stringify(v).replace(String(arg1), arg2);
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(stringify(arg1), arg2);
 }
 function replace_last(v, arg1, arg2) {
     const str = stringify(v);
-    const pattern = String(arg1);
+    this.context.memoryLimit.use(str.length);
+    const pattern = stringify(arg1);
     const index = str.lastIndexOf(pattern);
     if (index === -1)
         return str;
-    const replacement = String(arg2);
+    const replacement = stringify(arg2);
     return str.substring(0, index) + replacement + str.substring(index + pattern.length);
 }
 function truncate(v, l = 50, o = '...') {
-    v = stringify(v);
-    if (v.length <= l)
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    if (str.length <= l)
         return v;
-    return v.substring(0, l - o.length) + o;
+    return str.substring(0, l - o.length) + o;
 }
 function truncatewords(v, words = 15, o = '...') {
-    const arr = stringify(v).split(/\s+/);
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    const arr = str.split(/\s+/);
     if (words <= 0)
         words = 1;
     let ret = arr.slice(0, words).join(' ');
     if (arr.length >= words)
         ret += o;
     return ret;
+}
+function normalize_whitespace(v) {
+    const str = stringify(v);
+    this.context.memoryLimit.use(str.length);
+    return str.replace(/\s+/g, ' ');
+}
+function number_of_words(input, mode) {
+    const str = stringify(input);
+    this.context.memoryLimit.use(str.length);
+    input = str.trim();
+    if (!input)
+        return 0;
+    switch (mode) {
+        case 'cjk':
+            // Count CJK characters and words
+            return (input.match(rCJKWord) || []).length + (input.match(rNonCJKWord) || []).length;
+        case 'auto':
+            // Count CJK characters, if none, count words
+            return rCJKWord.test(input)
+                ? input.match(rCJKWord).length + (input.match(rNonCJKWord) || []).length
+                : input.split(/\s+/).length;
+        default:
+            // Count words only
+            return input.split(/\s+/).length;
+    }
+}
+function array_to_sentence_string(array, connector = 'and') {
+    this.context.memoryLimit.use(array.length);
+    switch (array.length) {
+        case 0:
+            return '';
+        case 1:
+            return array[0];
+        case 2:
+            return `${array[0]} ${connector} ${array[1]}`;
+        default:
+            return `${array.slice(0, -1).join(', ')}, ${connector} ${array[array.length - 1]}`;
+    }
 }
 
 var stringFilters = /*#__PURE__*/Object.freeze({
@@ -20307,52 +21263,58 @@ var stringFilters = /*#__PURE__*/Object.freeze({
   replace_first: replace_first,
   replace_last: replace_last,
   truncate: truncate,
-  truncatewords: truncatewords
+  truncatewords: truncatewords,
+  normalize_whitespace: normalize_whitespace,
+  number_of_words: number_of_words,
+  array_to_sentence_string: array_to_sentence_string
 });
 
-const filters = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, htmlFilters), mathFilters), urlFilters), arrayFilters), dateFilters), stringFilters), { json,
-    raw, default: Default });
+const filters = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, htmlFilters), mathFilters), urlFilters), arrayFilters), dateFilters), stringFilters), misc);
 
 class AssignTag extends Tag {
     constructor(token, remainTokens, liquid) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, liquid.options.operators);
-        this.key = tokenizer.readIdentifier().content;
-        tokenizer.skipBlank();
-        assert(tokenizer.peek() === '=', () => `illegal token ${token.getText()}`);
-        tokenizer.advance();
-        this.value = new Value(tokenizer.remaining(), this.liquid);
+        this.identifier = this.tokenizer.readIdentifier();
+        this.key = this.identifier.content;
+        this.tokenizer.assert(this.key, 'expected variable name');
+        this.tokenizer.skipBlank();
+        this.tokenizer.assert(this.tokenizer.peek() === '=', 'expected "="');
+        this.tokenizer.advance();
+        this.value = new Value(this.tokenizer.readFilteredValue(), this.liquid);
     }
     *render(ctx) {
         ctx.bottom()[this.key] = yield this.value.value(ctx, this.liquid.options.lenientIf);
+    }
+    *arguments() {
+        yield this.value;
+    }
+    *localScope() {
+        yield this.identifier;
     }
 }
 
 const MODIFIERS = ['offset', 'limit', 'reversed'];
 class ForTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
-        const variable = tokenizer.readIdentifier();
-        const inStr = tokenizer.readIdentifier();
-        const collection = tokenizer.readValue();
+        const variable = this.tokenizer.readIdentifier();
+        const inStr = this.tokenizer.readIdentifier();
+        const collection = this.tokenizer.readValue();
         if (!variable.size() || inStr.content !== 'in' || !collection) {
             throw new Error(`illegal tag: ${token.getText()}`);
         }
         this.variable = variable.content;
         this.collection = collection;
-        this.hash = new Hash(tokenizer.remaining());
+        this.hash = new Hash(this.tokenizer, liquid.options.keyValueSeparator);
         this.templates = [];
         this.elseTemplates = [];
         let p;
-        const stream = this.liquid.parser.parseStream(remainTokens)
+        const stream = parser.parseStream(remainTokens)
             .on('start', () => (p = this.templates))
-            .on('tag:else', () => (p = this.elseTemplates))
-            .on('tag:endfor', () => stream.stop())
+            .on('tag:else', tag => { assertEmpty(tag.args); p = this.elseTemplates; })
+            .on('tag:endfor', tag => { assertEmpty(tag.args); stream.stop(); })
             .on('template', (tpl) => p.push(tpl))
-            .on('end', () => {
-            throw new Error(`tag ${token.getText()} not closed`);
-        });
+            .on('end', () => { throw new Error(`tag ${token.getText()} not closed`); });
         stream.start();
     }
     *render(ctx, emitter) {
@@ -20381,15 +21343,32 @@ class ForTag extends Tag {
         ctx.push(scope);
         for (const item of collection) {
             scope[this.variable] = item;
+            ctx.continueCalled = ctx.breakCalled = false;
             yield r.renderTemplates(this.templates, ctx, emitter);
-            if (emitter['break']) {
-                emitter['break'] = false;
+            if (ctx.breakCalled)
                 break;
-            }
-            emitter['continue'] = false;
             scope.forloop.next();
         }
+        ctx.continueCalled = ctx.breakCalled = false;
         ctx.pop();
+    }
+    *children() {
+        const templates = this.templates.slice();
+        if (this.elseTemplates) {
+            templates.push(...this.elseTemplates);
+        }
+        return templates;
+    }
+    *arguments() {
+        yield this.collection;
+        for (const v of Object.values(this.hash.hash)) {
+            if (isValueToken(v)) {
+                yield v;
+            }
+        }
+    }
+    blockScope() {
+        return [this.variable, 'forloop'];
     }
 }
 function reversed(arr) {
@@ -20403,60 +21382,82 @@ function limit(arr, count) {
 }
 
 class CaptureTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
+    constructor(tagToken, remainTokens, liquid, parser) {
         super(tagToken, remainTokens, liquid);
         this.templates = [];
-        const tokenizer = new Tokenizer(tagToken.args, this.liquid.options.operators);
-        this.variable = readVariableName(tokenizer);
-        assert(this.variable, () => `${tagToken.args} not valid identifier`);
+        this.identifier = this.readVariable();
+        this.variable = this.identifier.content;
         while (remainTokens.length) {
             const token = remainTokens.shift();
             if (isTagToken(token) && token.name === 'endcapture')
                 return;
-            this.templates.push(liquid.parser.parseToken(token, remainTokens));
+            this.templates.push(parser.parseToken(token, remainTokens));
         }
         throw new Error(`tag ${tagToken.getText()} not closed`);
+    }
+    readVariable() {
+        let ident = this.tokenizer.readIdentifier();
+        if (ident.content)
+            return ident;
+        ident = this.tokenizer.readQuoted();
+        if (ident)
+            return ident;
+        throw this.tokenizer.error('invalid capture name');
     }
     *render(ctx) {
         const r = this.liquid.renderer;
         const html = yield r.renderTemplates(this.templates, ctx);
         ctx.bottom()[this.variable] = html;
     }
-}
-function readVariableName(tokenizer) {
-    const word = tokenizer.readIdentifier().content;
-    if (word)
-        return word;
-    const quoted = tokenizer.readQuoted();
-    if (quoted)
-        return evalQuotedToken(quoted);
+    *children() {
+        return this.templates;
+    }
+    *localScope() {
+        yield this.identifier;
+    }
 }
 
 class CaseTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
+    constructor(tagToken, remainTokens, liquid, parser) {
         super(tagToken, remainTokens, liquid);
         this.branches = [];
         this.elseTemplates = [];
-        this.value = new Value(tagToken.args, this.liquid);
+        this.value = new Value(this.tokenizer.readFilteredValue(), this.liquid);
         this.elseTemplates = [];
         let p = [];
-        const stream = this.liquid.parser.parseStream(remainTokens)
+        let elseCount = 0;
+        const stream = parser.parseStream(remainTokens)
             .on('tag:when', (token) => {
+            if (elseCount > 0) {
+                return;
+            }
             p = [];
-            const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
             const values = [];
-            while (!tokenizer.end()) {
-                values.push(tokenizer.readValueOrThrow());
-                tokenizer.readTo(',');
+            while (!token.tokenizer.end()) {
+                values.push(token.tokenizer.readValueOrThrow());
+                token.tokenizer.skipBlank();
+                if (token.tokenizer.peek() === ',') {
+                    token.tokenizer.readTo(',');
+                }
+                else {
+                    token.tokenizer.readTo('or');
+                }
             }
             this.branches.push({
                 values,
                 templates: p
             });
         })
-            .on('tag:else', () => (p = this.elseTemplates))
+            .on('tag:else', () => {
+            elseCount++;
+            p = this.elseTemplates;
+        })
             .on('tag:endcase', () => stream.stop())
-            .on('template', (tpl) => p.push(tpl))
+            .on('template', (tpl) => {
+            if (p !== this.elseTemplates || elseCount === 1) {
+                p.push(tpl);
+            }
+        })
             .on('end', () => {
             throw new Error(`tag ${tagToken.getText()} not closed`);
         });
@@ -20469,7 +21470,7 @@ class CaseTag extends Tag {
         for (const branch of this.branches) {
             for (const valueToken of branch.values) {
                 const value = yield evalToken(valueToken, ctx, ctx.opts.lenientIf);
-                if (target === value) {
+                if (equals(target, value)) {
                     yield r.renderTemplates(branch.templates, ctx, emitter);
                     branchHit = true;
                     break;
@@ -20479,6 +21480,17 @@ class CaseTag extends Tag {
         if (!branchHit) {
             yield r.renderTemplates(this.elseTemplates, ctx, emitter);
         }
+    }
+    *arguments() {
+        yield this.value;
+        yield* this.branches.flatMap(b => b.values);
+    }
+    *children() {
+        const templates = this.branches.flatMap(b => b.templates);
+        if (this.elseTemplates) {
+            templates.push(...this.elseTemplates);
+        }
+        return templates;
     }
 }
 
@@ -20496,11 +21508,10 @@ class CommentTag extends Tag {
 }
 
 class RenderTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
-        const args = token.args;
-        const tokenizer = new Tokenizer(args, this.liquid.options.operators);
-        this.file = parseFilePath(tokenizer, this.liquid);
+        const tokenizer = this.tokenizer;
+        this.file = parseFilePath(tokenizer, this.liquid, parser);
         this.currentFile = token.file;
         while (!tokenizer.end()) {
             tokenizer.skipBlank();
@@ -20534,13 +21545,13 @@ class RenderTag extends Tag {
             tokenizer.p = begin;
             break;
         }
-        this.hash = new Hash(tokenizer.remaining());
+        this.hash = new Hash(tokenizer, liquid.options.keyValueSeparator);
     }
     *render(ctx, emitter) {
         const { liquid, hash } = this;
         const filepath = (yield renderFilePath(this['file'], ctx, liquid));
-        assert(filepath, () => `illegal filename "${filepath}"`);
-        const childCtx = new Context({}, ctx.opts, { sync: ctx.sync, globals: ctx.globals, strictVariables: ctx.strictVariables });
+        assert(filepath, () => `illegal file path "${filepath}"`);
+        const childCtx = ctx.spawn();
         const scope = childCtx.bottom();
         __assign(scope, yield hash.render(ctx));
         if (this['with']) {
@@ -20563,6 +21574,55 @@ class RenderTag extends Tag {
             yield liquid.renderer.renderTemplates(templates, childCtx, emitter);
         }
     }
+    *children(partials, sync) {
+        if (partials && isString(this['file'])) {
+            return (yield this.liquid._parsePartialFile(this['file'], sync, this['currentFile']));
+        }
+        return [];
+    }
+    partialScope() {
+        if (isString(this['file'])) {
+            const names = Object.keys(this.hash.hash);
+            if (this['with']) {
+                const { value, alias } = this['with'];
+                if (isString(alias)) {
+                    names.push([alias, value]);
+                }
+                else if (isString(this.file)) {
+                    names.push([this.file, value]);
+                }
+            }
+            if (this['for']) {
+                const { value, alias } = this['for'];
+                if (isString(alias)) {
+                    names.push([alias, value]);
+                }
+                else if (isString(this.file)) {
+                    names.push([this.file, value]);
+                }
+            }
+            return { name: this['file'], isolated: true, scope: names };
+        }
+    }
+    *arguments() {
+        for (const v of Object.values(this.hash.hash)) {
+            if (isValueToken(v)) {
+                yield v;
+            }
+        }
+        if (this['with']) {
+            const { value } = this['with'];
+            if (isValueToken(value)) {
+                yield value;
+            }
+        }
+        if (this['for']) {
+            const { value } = this['for'];
+            if (isValueToken(value)) {
+                yield value;
+            }
+        }
+    }
 }
 /**
  * @return null for "none",
@@ -20570,22 +21630,21 @@ class RenderTag extends Tag {
  * @return Token for expression (not quoted)
  * @throws TypeError if cannot read next token
  */
-function parseFilePath(tokenizer, liquid) {
+function parseFilePath(tokenizer, liquid, parser) {
     if (liquid.options.dynamicPartials) {
         const file = tokenizer.readValue();
-        if (file === undefined)
-            throw new TypeError(`illegal argument "${tokenizer.input}"`);
+        tokenizer.assert(file, 'illegal file path');
         if (file.getText() === 'none')
             return;
         if (isQuotedToken(file)) {
             // for filenames like "files/{{file}}", eval as liquid template
-            const templates = liquid.parse(evalQuotedToken(file));
+            const templates = parser.parse(evalQuotedToken(file));
             return optimize(templates);
         }
         return file;
     }
     const tokens = [...tokenizer.readFileNameTemplate(liquid.options)];
-    const templates = optimize(liquid.parser.parseTokens(tokens));
+    const templates = optimize(parser.parseTokens(tokens));
     return templates === 'none' ? undefined : templates;
 }
 function optimize(templates) {
@@ -20603,11 +21662,10 @@ function* renderFilePath(file, ctx, liquid) {
 }
 
 class IncludeTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
-        const args = token.args;
-        const tokenizer = new Tokenizer(args, this.liquid.options.operators);
-        this['file'] = parseFilePath(tokenizer, this.liquid);
+        const { tokenizer } = token;
+        this['file'] = parseFilePath(tokenizer, this.liquid, parser);
         this['currentFile'] = token.file;
         const begin = tokenizer.p;
         const withStr = tokenizer.readIdentifier();
@@ -20621,13 +21679,13 @@ class IncludeTag extends Tag {
         }
         else
             tokenizer.p = begin;
-        this.hash = new Hash(tokenizer.remaining(), this.liquid.options.jekyllInclude);
+        this.hash = new Hash(tokenizer, liquid.options.jekyllInclude || liquid.options.keyValueSeparator);
     }
     *render(ctx, emitter) {
         const { liquid, hash, withVar } = this;
         const { renderer } = liquid;
         const filepath = (yield renderFilePath(this['file'], ctx, liquid));
-        assert(filepath, () => `illegal filename "${filepath}"`);
+        assert(filepath, () => `illegal file path "${filepath}"`);
         const saved = ctx.saveRegister('blocks', 'blockMode');
         ctx.setRegister('blocks', {});
         ctx.setRegister('blockMode', BlockMode.OUTPUT);
@@ -20640,13 +21698,43 @@ class IncludeTag extends Tag {
         ctx.pop();
         ctx.restoreRegister(saved);
     }
+    *children(partials, sync) {
+        if (partials && isString(this['file'])) {
+            return (yield this.liquid._parsePartialFile(this['file'], sync, this['currentFile']));
+        }
+        return [];
+    }
+    partialScope() {
+        if (isString(this['file'])) {
+            let names;
+            if (this.liquid.options.jekyllInclude) {
+                names = ['include'];
+            }
+            else {
+                names = Object.keys(this.hash.hash);
+                if (this.withVar) {
+                    names.push([this['file'], this.withVar]);
+                }
+            }
+            return { name: this['file'], isolated: false, scope: names };
+        }
+    }
+    *arguments() {
+        yield* Object.values(this.hash.hash).filter(isValueToken);
+        if (isValueToken(this['file'])) {
+            yield this['file'];
+        }
+        if (isValueToken(this.withVar)) {
+            yield this.withVar;
+        }
+    }
 }
 
 class DecrementTag extends Tag {
     constructor(token, remainTokens, liquid) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
-        this.variable = tokenizer.readIdentifier().content;
+        this.identifier = this.tokenizer.readIdentifier();
+        this.variable = this.identifier.content;
     }
     render(context, emitter) {
         const scope = context.environments;
@@ -20655,30 +21743,32 @@ class DecrementTag extends Tag {
         }
         emitter.write(stringify(--scope[this.variable]));
     }
+    *localScope() {
+        yield this.identifier;
+    }
 }
 
 class CycleTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
-        super(tagToken, remainTokens, liquid);
+    constructor(token, remainTokens, liquid) {
+        super(token, remainTokens, liquid);
         this.candidates = [];
-        const tokenizer = new Tokenizer(tagToken.args, this.liquid.options.operators);
-        const group = tokenizer.readValue();
-        tokenizer.skipBlank();
+        const group = this.tokenizer.readValue();
+        this.tokenizer.skipBlank();
         if (group) {
-            if (tokenizer.peek() === ':') {
+            if (this.tokenizer.peek() === ':') {
                 this.group = group;
-                tokenizer.advance();
+                this.tokenizer.advance();
             }
             else
                 this.candidates.push(group);
         }
-        while (!tokenizer.end()) {
-            const value = tokenizer.readValue();
+        while (!this.tokenizer.end()) {
+            const value = this.tokenizer.readValue();
             if (value)
                 this.candidates.push(value);
-            tokenizer.readTo(',');
+            this.tokenizer.readTo(',');
         }
-        assert(this.candidates.length, () => `empty candidates: ${tagToken.getText()}`);
+        this.tokenizer.assert(this.candidates.length, () => `empty candidates: "${token.getText()}"`);
     }
     *render(ctx, emitter) {
         const group = (yield evalToken(this.group, ctx));
@@ -20693,25 +21783,37 @@ class CycleTag extends Tag {
         groups[fingerprint] = idx;
         return yield evalToken(candidate, ctx);
     }
+    *arguments() {
+        yield* this.candidates;
+        if (this.group) {
+            yield this.group;
+        }
+    }
 }
 
 class IfTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
+    constructor(tagToken, remainTokens, liquid, parser) {
         super(tagToken, remainTokens, liquid);
         this.branches = [];
-        this.elseTemplates = [];
-        let p;
-        liquid.parser.parseStream(remainTokens)
+        let p = [];
+        parser.parseStream(remainTokens)
             .on('start', () => this.branches.push({
-            value: new Value(tagToken.args, this.liquid),
+            value: new Value(tagToken.tokenizer.readFilteredValue(), this.liquid),
             templates: (p = [])
         }))
-            .on('tag:elsif', (token) => this.branches.push({
-            value: new Value(token.args, this.liquid),
-            templates: (p = [])
-        }))
-            .on('tag:else', () => (p = this.elseTemplates))
-            .on('tag:endif', function () { this.stop(); })
+            .on('tag:elsif', (token) => {
+            assert(!this.elseTemplates, 'unexpected elsif after else');
+            this.branches.push({
+                value: new Value(token.tokenizer.readFilteredValue(), this.liquid),
+                templates: (p = [])
+            });
+        })
+            .on('tag:else', tag => {
+            assertEmpty(tag.args);
+            assert(!this.elseTemplates, 'duplicated else');
+            p = this.elseTemplates = [];
+        })
+            .on('tag:endif', function (tag) { assertEmpty(tag.args); this.stop(); })
             .on('template', (tpl) => p.push(tpl))
             .on('end', () => { throw new Error(`tag ${tagToken.getText()} not closed`); })
             .start();
@@ -20725,15 +21827,25 @@ class IfTag extends Tag {
                 return;
             }
         }
-        yield r.renderTemplates(this.elseTemplates, ctx, emitter);
+        yield r.renderTemplates(this.elseTemplates || [], ctx, emitter);
+    }
+    *children() {
+        const templates = this.branches.flatMap(b => b.templates);
+        if (this.elseTemplates) {
+            templates.push(...this.elseTemplates);
+        }
+        return templates;
+    }
+    arguments() {
+        return this.branches.map(b => b.value);
     }
 }
 
 class IncrementTag extends Tag {
     constructor(token, remainTokens, liquid) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
-        this.variable = tokenizer.readIdentifier().content;
+        this.identifier = this.tokenizer.readIdentifier();
+        this.variable = this.identifier.content;
     }
     render(context, emitter) {
         const scope = context.environments;
@@ -20744,16 +21856,18 @@ class IncrementTag extends Tag {
         scope[this.variable]++;
         emitter.write(stringify(val));
     }
+    *localScope() {
+        yield this.identifier;
+    }
 }
 
 class LayoutTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
-        this.file = parseFilePath(tokenizer, this.liquid);
+        this.file = parseFilePath(this.tokenizer, this.liquid, parser);
         this['currentFile'] = token.file;
-        this.args = new Hash(tokenizer.remaining());
-        this.templates = this.liquid.parser.parseTokens(remainTokens);
+        this.args = new Hash(this.tokenizer, liquid.options.keyValueSeparator);
+        this.templates = parser.parseTokens(remainTokens);
     }
     *render(ctx, emitter) {
         const { liquid, args, file } = this;
@@ -20764,7 +21878,7 @@ class LayoutTag extends Tag {
             return;
         }
         const filepath = (yield renderFilePath(this.file, ctx, liquid));
-        assert(filepath, () => `illegal filename "${filepath}"`);
+        assert(filepath, () => `illegal file path "${filepath}"`);
         const templates = (yield liquid._parseLayoutFile(filepath, ctx.sync, this['currentFile']));
         // render remaining contents and store rendered results
         ctx.setRegister('blockMode', BlockMode.STORE);
@@ -20779,10 +21893,32 @@ class LayoutTag extends Tag {
         yield renderer.renderTemplates(templates, ctx, emitter);
         ctx.pop();
     }
+    *children(partials) {
+        const templates = this.templates.slice();
+        if (partials && isString(this.file)) {
+            templates.push(...(yield this.liquid._parsePartialFile(this.file, true, this['currentFile'])));
+        }
+        return templates;
+    }
+    *arguments() {
+        for (const v of Object.values(this.args.hash)) {
+            if (isValueToken(v)) {
+                yield v;
+            }
+        }
+        if (isValueToken(this.file)) {
+            yield this.file;
+        }
+    }
+    partialScope() {
+        if (isString(this.file)) {
+            return { name: this.file, isolated: false, scope: Object.keys(this.args.hash) };
+        }
+    }
 }
 
 class BlockTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
         this.templates = [];
         const match = /\w+/.exec(token.args);
@@ -20791,7 +21927,7 @@ class BlockTag extends Tag {
             const token = remainTokens.shift();
             if (isTagToken(token) && token.name === 'endblock')
                 return;
-            const template = liquid.parser.parseToken(token, remainTokens);
+            const template = parser.parseToken(token, remainTokens);
             this.templates.push(template);
         }
         throw new Error(`tag ${token.getText()} not closed`);
@@ -20817,6 +21953,12 @@ class BlockTag extends Tag {
         return renderChild
             ? (superBlock, emitter) => renderChild(new BlockDrop(() => renderCurrent(superBlock, emitter)), emitter)
             : renderCurrent;
+    }
+    *children() {
+        return this.templates;
+    }
+    blockScope() {
+        return ['block'];
     }
 }
 
@@ -20861,22 +22003,21 @@ class TablerowloopDrop extends ForloopDrop {
 }
 
 class TablerowTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
+    constructor(tagToken, remainTokens, liquid, parser) {
         super(tagToken, remainTokens, liquid);
-        const tokenizer = new Tokenizer(tagToken.args, this.liquid.options.operators);
-        const variable = tokenizer.readIdentifier();
-        tokenizer.skipBlank();
-        const predicate = tokenizer.readIdentifier();
-        const collectionToken = tokenizer.readValue();
+        const variable = this.tokenizer.readIdentifier();
+        this.tokenizer.skipBlank();
+        const predicate = this.tokenizer.readIdentifier();
+        const collectionToken = this.tokenizer.readValue();
         if (predicate.content !== 'in' || !collectionToken) {
             throw new Error(`illegal tag: ${tagToken.getText()}`);
         }
         this.variable = variable.content;
         this.collection = collectionToken;
-        this.args = new Hash(tokenizer.remaining());
+        this.args = new Hash(this.tokenizer, liquid.options.keyValueSeparator);
         this.templates = [];
         let p;
-        const stream = this.liquid.parser.parseStream(remainTokens)
+        const stream = parser.parseStream(remainTokens)
             .on('start', () => (p = this.templates))
             .on('tag:endtablerow', () => stream.stop())
             .on('template', (tpl) => p.push(tpl))
@@ -20911,28 +22052,56 @@ class TablerowTag extends Tag {
             emitter.write('</tr>');
         ctx.pop();
     }
+    *children() {
+        return this.templates;
+    }
+    *arguments() {
+        yield this.collection;
+        for (const v of Object.values(this.args.hash)) {
+            if (isValueToken(v)) {
+                yield v;
+            }
+        }
+    }
+    blockScope() {
+        return [this.variable, 'tablerowloop'];
+    }
 }
 
 class UnlessTag extends Tag {
-    constructor(tagToken, remainTokens, liquid) {
+    constructor(tagToken, remainTokens, liquid, parser) {
         super(tagToken, remainTokens, liquid);
         this.branches = [];
         this.elseTemplates = [];
-        let p;
-        this.liquid.parser.parseStream(remainTokens)
+        let p = [];
+        let elseCount = 0;
+        parser.parseStream(remainTokens)
             .on('start', () => this.branches.push({
-            value: new Value(tagToken.args, this.liquid),
+            value: new Value(tagToken.tokenizer.readFilteredValue(), this.liquid),
             test: isFalsy,
             templates: (p = [])
         }))
-            .on('tag:elsif', (token) => this.branches.push({
-            value: new Value(token.args, this.liquid),
-            test: isTruthy,
-            templates: (p = [])
-        }))
-            .on('tag:else', () => (p = this.elseTemplates))
+            .on('tag:elsif', (token) => {
+            if (elseCount > 0) {
+                p = [];
+                return;
+            }
+            this.branches.push({
+                value: new Value(token.tokenizer.readFilteredValue(), this.liquid),
+                test: isTruthy,
+                templates: (p = [])
+            });
+        })
+            .on('tag:else', () => {
+            elseCount++;
+            p = this.elseTemplates;
+        })
             .on('tag:endunless', function () { this.stop(); })
-            .on('template', (tpl) => p.push(tpl))
+            .on('template', (tpl) => {
+            if (p !== this.elseTemplates || elseCount === 1) {
+                p.push(tpl);
+            }
+        })
             .on('end', () => { throw new Error(`tag ${tagToken.getText()} not closed`); })
             .start();
     }
@@ -20947,40 +22116,62 @@ class UnlessTag extends Tag {
         }
         yield r.renderTemplates(this.elseTemplates, ctx, emitter);
     }
+    *children() {
+        const children = this.branches.flatMap(b => b.templates);
+        if (this.elseTemplates) {
+            children.push(...this.elseTemplates);
+        }
+        return children;
+    }
+    arguments() {
+        return this.branches.map(b => b.value);
+    }
 }
 
 class BreakTag extends Tag {
-    render(ctx, emitter) {
-        emitter['break'] = true;
+    render(ctx, _emitter) {
+        ctx.breakCalled = true;
     }
 }
 
 class ContinueTag extends Tag {
-    render(ctx, emitter) {
-        emitter['continue'] = true;
+    render(ctx, _emitter) {
+        ctx.continueCalled = true;
     }
 }
 
 class EchoTag extends Tag {
     constructor(token, remainTokens, liquid) {
         super(token, remainTokens, liquid);
-        this.value = new Value(token.args, this.liquid);
+        this.tokenizer.skipBlank();
+        if (!this.tokenizer.end()) {
+            this.value = new Value(this.tokenizer.readFilteredValue(), this.liquid);
+        }
     }
     *render(ctx, emitter) {
+        if (!this.value)
+            return;
         const val = yield this.value.value(ctx, false);
         emitter.write(val);
+    }
+    *arguments() {
+        if (this.value) {
+            yield this.value;
+        }
     }
 }
 
 class LiquidTag extends Tag {
-    constructor(token, remainTokens, liquid) {
+    constructor(token, remainTokens, liquid, parser) {
         super(token, remainTokens, liquid);
-        const tokenizer = new Tokenizer(token.args, this.liquid.options.operators);
-        const tokens = tokenizer.readLiquidTagTokens(this.liquid.options);
-        this.templates = this.liquid.parser.parseTokens(tokens);
+        const tokens = this.tokenizer.readLiquidTagTokens(this.liquid.options);
+        this.templates = parser.parseTokens(tokens);
     }
     *render(ctx, emitter) {
         yield this.liquid.renderer.renderTemplates(this.templates, ctx, emitter);
+    }
+    *children() {
+        return this.templates;
     }
 }
 
@@ -21024,12 +22215,14 @@ class Liquid {
         this.filters = {};
         this.tags = {};
         this.options = normalize(opts);
+        // eslint-disable-next-line deprecation/deprecation
         this.parser = new Parser(this);
         forOwn(tags, (conf, name) => this.registerTag(name, conf));
         forOwn(filters, (handler, name) => this.registerFilter(name, handler));
     }
     parse(html, filepath) {
-        return this.parser.parse(html, filepath);
+        const parser = new Parser(this);
+        return parser.parse(html, filepath);
     }
     _render(tpl, scope, renderOptions) {
         const ctx = scope instanceof Context ? scope : new Context(scope, this.options, renderOptions);
@@ -21060,21 +22253,21 @@ class Liquid {
         return toValueSync(this._parseAndRender(html, scope, Object.assign(Object.assign({}, renderOptions), { sync: true })));
     }
     _parsePartialFile(file, sync, currentFile) {
-        return this.parser.parseFile(file, sync, LookupType.Partials, currentFile);
+        return new Parser(this).parseFile(file, sync, LookupType.Partials, currentFile);
     }
     _parseLayoutFile(file, sync, currentFile) {
-        return this.parser.parseFile(file, sync, LookupType.Layouts, currentFile);
+        return new Parser(this).parseFile(file, sync, LookupType.Layouts, currentFile);
     }
     _parseFile(file, sync, lookupType, currentFile) {
-        return this.parser.parseFile(file, sync, lookupType, currentFile);
+        return new Parser(this).parseFile(file, sync, lookupType, currentFile);
     }
     parseFile(file, lookupType) {
         return __awaiter(this, void 0, void 0, function* () {
-            return toPromise(this.parser.parseFile(file, false, lookupType));
+            return toPromise(new Parser(this).parseFile(file, false, lookupType));
         });
     }
     parseFileSync(file, lookupType) {
-        return toValueSync(this.parser.parseFile(file, true, lookupType));
+        return toValueSync(new Parser(this).parseFile(file, true, lookupType));
     }
     *_renderFile(file, ctx, renderFileOptions) {
         const templates = (yield this._parseFile(file, renderFileOptions.sync, renderFileOptions.lookupType));
@@ -21130,6 +22323,94 @@ class Liquid {
             self.renderFile(filePath, ctx).then(html => callback(null, html), callback);
         };
     }
+    analyze(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return analyze(template, options);
+        });
+    }
+    analyzeSync(template, options = {}) {
+        return analyzeSync(template, options);
+    }
+    parseAndAnalyze(html, filename, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return analyze(this.parse(html, filename), options);
+        });
+    }
+    parseAndAnalyzeSync(html, filename, options = {}) {
+        return analyzeSync(this.parse(html, filename), options);
+    }
+    /** Return an array of all variables without their properties. */
+    variables(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Object.keys(analysis.variables);
+        });
+    }
+    /** Return an array of all variables without their properties. */
+    variablesSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Object.keys(analysis.variables);
+    }
+    /** Return an array of all variables including their properties/paths. */
+    fullVariables(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Array.from(new Set(Object.values(analysis.variables).flatMap((a) => a.map((v) => String(v)))));
+        });
+    }
+    /** Return an array of all variables including their properties/paths. */
+    fullVariablesSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Array.from(new Set(Object.values(analysis.variables).flatMap((a) => a.map((v) => String(v)))));
+    }
+    /** Return an array of all variables, each as an array of properties/segments. */
+    variableSegments(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Array.from(strictUniq(Object.values(analysis.variables).flatMap((a) => a.map((v) => v.toArray()))));
+        });
+    }
+    /** Return an array of all variables, each as an array of properties/segments. */
+    variableSegmentsSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Array.from(strictUniq(Object.values(analysis.variables).flatMap((a) => a.map((v) => v.toArray()))));
+    }
+    /** Return an array of all expected context variables without their properties. */
+    globalVariables(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Object.keys(analysis.globals);
+        });
+    }
+    /** Return an array of all expected context variables without their properties. */
+    globalVariablesSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Object.keys(analysis.globals);
+    }
+    /** Return an array of all expected context variables including their properties/paths. */
+    globalFullVariables(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Array.from(new Set(Object.values(analysis.globals).flatMap((a) => a.map((v) => String(v)))));
+        });
+    }
+    /** Return an array of all expected context variables including their properties/paths. */
+    globalFullVariablesSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Array.from(new Set(Object.values(analysis.globals).flatMap((a) => a.map((v) => String(v)))));
+    }
+    /** Return an array of all expected context variables, each as an array of properties/segments. */
+    globalVariableSegments(template, options = {}) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const analysis = yield analyze(isString(template) ? this.parse(template) : template, options);
+            return Array.from(strictUniq(Object.values(analysis.globals).flatMap((a) => a.map((v) => v.toArray()))));
+        });
+    }
+    /** Return an array of all expected context variables, each as an array of properties/segments. */
+    globalVariableSegmentsSync(template, options = {}) {
+        const analysis = analyzeSync(isString(template) ? this.parse(template) : template, options);
+        return Array.from(strictUniq(Object.values(analysis.globals).flatMap((a) => a.map((v) => v.toArray()))));
+    }
 }
 
 const engine = new Liquid();
@@ -21183,6 +22464,14 @@ var e4 = defineHook(({}, { services, getSchema, logger, env }) => {
       await addField("format", "string");
     if (fields.orientation == null)
       await addField("orientation", "string");
+    if (fields.input_type == null)
+      await addField("input_type", "string");
+    if (fields.input_flow == null)
+      await addField("input_flow", "string");
+    if (fields.input_flow_body == null)
+      await addField("input_flow_body", "text");
+    if (fields.input_fixed == null)
+      await addField("input_fixed", "text");
     if (((_a = schema.collections.directus_settings) == null ? void 0 : _a.fields.TTA_KEY) == null) {
       await addField(
         "TTA_KEY",
@@ -21297,8 +22586,9 @@ var e4 = defineHook(({}, { services, getSchema, logger, env }) => {
         });
       } catch (error) {
         logger.warn(
-          "[TTA] Error while creating '" + name + "' in the collection " + collection
+          "[TTA] Error while creating '" + name + "' in the collection " + collection + ": "
         );
+        console.error(error);
       }
     }
     async function handleRapidAPIError(error) {

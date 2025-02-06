@@ -13,7 +13,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
       (schema.collections || {})["TTA_htmltemplates"] != null;
 
     if (!collectionExists) {
-      const collection = await collectionService.createOne({
+      await collectionService.createOne({
         collection: "TTA_htmltemplates",
         meta: {
           hidden: true,
@@ -52,6 +52,11 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
     if (fields.footer == null) await addField("footer", "text");
     if (fields.format == null) await addField("format", "string");
     if (fields.orientation == null) await addField("orientation", "string");
+    if (fields.input_type == null) await addField("input_type", "string");
+    if (fields.input_flow == null) await addField("input_flow", "string");
+    if (fields.input_flow_body == null)
+      await addField("input_flow_body", "text");
+    if (fields.input_fixed == null) await addField("input_fixed", "text");
 
     if (schema.collections.directus_settings?.fields.TTA_KEY == null) {
       await addField(
@@ -190,8 +195,10 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
           "[TTA] Error while creating '" +
             name +
             "' in the collection " +
-            collection
+            collection +
+            ": "
         );
+        console.error(error);
       }
     }
 

@@ -3,7 +3,7 @@ import { defineOperationApp } from "@directus/extensions-sdk";
 export default defineOperationApp({
   id: "ttaqrcode",
   name: "TTA generate QRcode",
-  icon: "box",
+  icon: "qr_code",
   description: "Generate a QRcode trough Text to anything!",
   overview: ({ content }) => [
     {

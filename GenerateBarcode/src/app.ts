@@ -115,7 +115,7 @@ const types = [
 export default defineOperationApp({
   id: "ttabarcode",
   name: "TTA generate barcode",
-  icon: "box",
+  icon: "barcode",
   description: "Generate a barcode trough Text to anything!",
   overview: ({ barcodeContent }) => [
     {
