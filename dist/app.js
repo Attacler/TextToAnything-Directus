@@ -1,5 +1,5 @@
 import { defineOperationApp, useStores, useApi, defineModule, defineInterface } from '@directus/extensions-sdk';
-import { resolveComponent, openBlock, createBlock, withCtx, createVNode, createCommentVNode, defineComponent, computed, ref, watch, nextTick, onMounted, createTextVNode, unref, createElementBlock, createElementVNode, toDisplayString, normalizeStyle, resolveDynamicComponent, Fragment, pushScopeId, popScopeId, inject } from 'vue';
+import { resolveComponent, openBlock, createBlock, withCtx, createVNode, createCommentVNode, defineComponent, computed, ref, watch, nextTick, onMounted, createTextVNode, unref, createElementBlock, createElementVNode, toDisplayString, normalizeStyle, Fragment, resolveDynamicComponent, pushScopeId, popScopeId, inject } from 'vue';
 
 const types = [
   "auspost",
@@ -5508,13 +5508,12 @@ const _hoisted_8 = { class: "right-side" };
 const _hoisted_9 = { class: "setwidth" };
 const _hoisted_10 = { class: "TTA-action" };
 const _hoisted_11 = { class: "TTA-wapper" };
-const _hoisted_12 = { key: 0 };
-const _hoisted_13 = { class: "devFields" };
-const _hoisted_14 = /* @__PURE__ */ createElementVNode("div", { class: "field half" }, [
+const _hoisted_12 = { class: "devFields" };
+const _hoisted_13 = /* @__PURE__ */ createElementVNode("div", { class: "field half" }, [
   /* @__PURE__ */ createElementVNode("div", { class: "type-label" }, "Type input")
 ], -1);
-const _hoisted_15 = { id: "partSelect" };
-const _hoisted_16 = ["src"];
+const _hoisted_14 = { id: "partSelect" };
+const _hoisted_15 = ["src"];
 var script$4 = /* @__PURE__ */ defineComponent({
   __name: "templates",
   setup(__props) {
@@ -5545,7 +5544,7 @@ var script$4 = /* @__PURE__ */ defineComponent({
           currentHTML.value = currentTemplate.value.header;
         if (newPart == "Body")
           currentHTML.value = currentTemplate.value.template;
-        if (newPart == "footer")
+        if (newPart == "Footer")
           currentHTML.value = currentTemplate.value.footer;
       },
       {
@@ -5966,9 +5965,9 @@ var script$4 = /* @__PURE__ */ defineComponent({
                 style: normalizeStyle("width: " + unref(editorWidth) + "%"),
                 class: "TTA-editor-wrapper"
               }, [
-                currentPart.value == "Development" ? (openBlock(), createElementBlock("div", _hoisted_12, [
-                  createElementVNode("div", _hoisted_13, [
-                    _hoisted_14,
+                currentPart.value == "Development" ? (openBlock(), createElementBlock(Fragment, { key: 0 }, [
+                  createElementVNode("div", _hoisted_12, [
+                    _hoisted_13,
                     createVNode(_component_v_select, {
                       modelValue: currentTemplate.value.input_type,
                       "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => currentTemplate.value.input_type = $event),
@@ -6000,7 +5999,7 @@ var script$4 = /* @__PURE__ */ defineComponent({
                     language: "json",
                     onInput: changeJSON
                   }, null, 40, ["value"])) : createCommentVNode("v-if", true)
-                ])) : createCommentVNode("v-if", true),
+                ], 64)) : createCommentVNode("v-if", true),
                 currentPart.value != "Development" ? (openBlock(), createBlock(resolveDynamicComponent("interface-input-code"), {
                   key: 1,
                   class: "TTA-editor",
@@ -6008,7 +6007,7 @@ var script$4 = /* @__PURE__ */ defineComponent({
                   language: "htmlmixed",
                   onInput: changeHTML
                 }, null, 40, ["value"])) : createCommentVNode("v-if", true),
-                createElementVNode("div", _hoisted_15, [
+                createElementVNode("div", _hoisted_14, [
                   createVNode(_component_v_select, {
                     modelValue: currentPart.value,
                     "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => currentPart.value = $event),
@@ -6025,7 +6024,7 @@ var script$4 = /* @__PURE__ */ defineComponent({
                 class: "TTA-preview",
                 src: unref(computedTemplate),
                 style: normalizeStyle("width: " + unref(previewWidth) + "%")
-              }, null, 12, _hoisted_16)
+              }, null, 12, _hoisted_15)
             ])
           ])) : createCommentVNode("v-if", true),
           createVNode(_component_v_table, {
@@ -6059,7 +6058,7 @@ var script$4 = /* @__PURE__ */ defineComponent({
 
 var e=[],t=[];function n(n,r){if(n&&"undefined"!=typeof document){var a,s=!0===r.prepend?"prepend":"append",d=!0===r.singleTag,i="string"==typeof r.container?document.querySelector(r.container):document.getElementsByTagName("head")[0];if(d){var u=e.indexOf(i);-1===u&&(u=e.push(i)-1,t[u]={}),a=t[u]&&t[u][s]?t[u][s]:t[u][s]=c();}else a=c();65279===n.charCodeAt(0)&&(n=n.substring(1)),a.styleSheet?a.styleSheet.cssText+=n:a.appendChild(document.createTextNode(n));}function c(){var e=document.createElement("style");if(e.setAttribute("type","text/css"),r.attributes)for(var t=Object.keys(r.attributes),n=0;n<t.length;n++)e.setAttribute(t[n],r.attributes[t[n]]);var a="prepend"===s?"afterbegin":"beforeend";return i.insertAdjacentElement(a,e),e}}
 
-var css$1 = "\n.TTA-popup {\n  position: fixed;\n  left: 0;\n  top: 0;\n  width: 100%;\n  height: 100%;\n  z-index: 100;\n  display: flex;\n  flex-direction: column;\n  background-color: var(--background-subdued);\n}\n.TTA-toolbar {\n  background-color: var(--background-subdued);\n  display: flex;\n  justify-content: space-between;\n}\n.TTA-toolbar .right-side {\n  display: flex;\n  gap: 5px;\n}\n.TTA-toolbar .TTA-slider {\n  padding-top: 5px;\n}\n.TTA-toolbar .TTA-action {\n  padding: 5px;\n  cursor: pointer;\n}\n.TTA-toolbar .setwidth {\n  display: flex;\n  gap: 10px;\n  padding-top: 6px;\n}\n.TTA-toolbar .TTA-template-title {\n  margin: auto 0;\n  font-size: 18px;\n  cursor: pointer;\n  padding-right: 5px;\n  padding-left: 20px;\n  border-bottom: 1px solid var(--v-list-item-border-color);\n}\n.TTA-toolbar .TTA-template-title i {\n  padding-left: 5px;\n}\n.TTA-wapper {\n  display: flex;\n  flex-grow: 1;\n  overflow: hidden;\n  position: relative;\n}\n.TTA-preview {\n  flex-grow: 1;\n  background-color: white;\n  border: 0;\n}\n.TTA-editor {\n  flex-grow: 1;\n  height: 100%;\n  width: 100%;\n}\n.TTA-wapper .TTA-editor-wrapper {\n  position: relative;\n}\n.TTA-editor > div {\n  height: 100% !important;\n  border-radius: 0 !important;\n}\n.TTA-editor .CodeMirror {\n  height: 100%;\n}\n.TTA-wapper #partSelect {\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 200px;\n}\n.devFields {\n  border-top: var(--theme--border-width) solid\n    var(--theme--form--field--input--border-color);\n  margin-left: 25px;\n  margin-bottom: 10px;\n}\n.max-w-input {\n  max-width: 250px;\n  padding: 10px 0;\n}\n.max-w-input .v-input {\n  max-width: 250px;\n  margin-bottom: 5px;\n}\n";
+var css$1 = "\n.TTA-popup {\n  position: fixed;\n  left: 0;\n  top: 0;\n  width: 100%;\n  height: 100%;\n  z-index: 100;\n  display: flex;\n  flex-direction: column;\n  background-color: var(--background-subdued);\n}\n.TTA-toolbar {\n  background-color: var(--background-subdued);\n  display: flex;\n  justify-content: space-between;\n}\n.TTA-toolbar .right-side {\n  display: flex;\n  gap: 5px;\n}\n.TTA-toolbar .TTA-slider {\n  padding-top: 5px;\n}\n.TTA-toolbar .TTA-action {\n  padding: 5px;\n  cursor: pointer;\n}\n.TTA-toolbar .setwidth {\n  display: flex;\n  gap: 10px;\n  padding-top: 6px;\n}\n.TTA-toolbar .TTA-template-title {\n  margin: auto 0;\n  font-size: 18px;\n  cursor: pointer;\n  padding-right: 5px;\n  padding-left: 20px;\n  border-bottom: 1px solid var(--v-list-item-border-color);\n}\n.TTA-toolbar .TTA-template-title i {\n  padding-left: 5px;\n}\n.TTA-wapper {\n  display: flex;\n  flex-grow: 1;\n  overflow: hidden;\n  position: relative;\n}\n.TTA-preview {\n  flex-grow: 1;\n  background-color: white;\n  border: 0;\n}\n.TTA-editor {\n  flex-grow: 1;\n  height: 100%;\n  width: 100%;\n  max-height: calc(100vh - 130px);\n}\n.TTA-wapper .TTA-editor-wrapper {\n  position: relative;\n}\n.TTA-editor > div {\n  height: 100% !important;\n  border-radius: 0 !important;\n}\n.TTA-editor .CodeMirror {\n  height: 100%;\n}\n.TTA-wapper #partSelect {\n  position: absolute;\n  right: 0;\n  top: 0;\n  width: 200px;\n}\n.devFields {\n  border-top: var(--theme--border-width) solid\n    var(--theme--form--field--input--border-color);\n  margin-left: 25px;\n  margin-bottom: 10px;\n}\n.max-w-input {\n  max-width: 250px;\n  padding: 10px 0;\n}\n.max-w-input .v-input {\n  max-width: 250px;\n  margin-bottom: 5px;\n}\n";
 n(css$1,{});
 
 script$4.__file = "settingsmodule/src/templates.vue";

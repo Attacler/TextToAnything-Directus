@@ -14,11 +14,13 @@ The package currently supports the following operations:
 - Create a PDF based on a HTML Template
 - Create a QRCode
 - Create a Barcode
+- Download a file based on a flow
 
 The actions work trough flow operations and will upload the PDF/QRCode/Barcode directly into Directus.
 The operation will return the Directus file id which you can use to link the file to a record.
 
-If there are any questions or bugs, please create an issue.
+If there are any questions or bugs, please create an issue. <br>
+You can also join our [Discord](https://discord.gg/Ed6GMxTJ) if you need direct support.
 
 ## Documentation
 

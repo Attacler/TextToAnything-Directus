@@ -145,7 +145,7 @@
       </div>
       <div class="TTA-wapper">
         <div :style="'width: ' + editorWidth + '%'" class="TTA-editor-wrapper">
-          <div v-if="currentPart == 'Development'">
+          <template v-if="currentPart == 'Development'">
             <div class="devFields">
               <div class="field half">
                 <div class="type-label">Type input</div>
@@ -181,7 +181,7 @@
               @input="changeJSON"
               v-if="currentTemplate.input_type == 'Flow'"
             />
-          </div>
+          </template>
           <component
             is="interface-input-code"
             class="TTA-editor"
@@ -279,7 +279,7 @@ watch(
     if (newPart == "Development") currentHTML.value = "";
     if (newPart == "Header") currentHTML.value = currentTemplate.value.header;
     if (newPart == "Body") currentHTML.value = currentTemplate.value.template;
-    if (newPart == "footer") currentHTML.value = currentTemplate.value.footer;
+    if (newPart == "Footer") currentHTML.value = currentTemplate.value.footer;
   },
   {
     immediate: true,
@@ -554,6 +554,7 @@ function alignHTML() {
   flex-grow: 1;
   height: 100%;
   width: 100%;
+  max-height: calc(100vh - 130px);
 }
 .TTA-wapper .TTA-editor-wrapper {
   position: relative;
