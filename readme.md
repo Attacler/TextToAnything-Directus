@@ -20,7 +20,7 @@ The actions work trough flow operations and will upload the PDF/QRCode/Barcode d
 The operation will return the Directus file id which you can use to link the file to a record.
 
 If there are any questions or bugs, please create an issue. <br>
-You can also join our [Discord](https://discord.gg/Ed6GMxTJ) if you need direct support.
+You can also join our [Discord](https://discord.gg/dbEWUHGmnr) if you need direct support.
 
 ## Documentation
 
