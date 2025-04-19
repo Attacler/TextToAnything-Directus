@@ -30,6 +30,10 @@ You can also join our [Discord](https://discord.gg/Ed6GMxTJ) if you need direct 
 - [PDF from template](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-templates)
 - [QRcode](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-QRCodes)
 
+## Guides
+
+[How to generate invoice PDFs](https://attacler.medium.com/generating-invoice-pdfs-with-texttoanything-in-directus-e81c324010ac)
+
 ## FAQ
 
 1. How do i find or reset my Rapid API key?
