@@ -118,10 +118,29 @@
           <v-icon name="edit" />
         </div>
         <div class="right-side">
-          <VTabs v-model="previewMode">
-            <VTab> Code </VTab>
-            <VTab> Preview </VTab>
-          </VTabs>
+          <VSelect
+            v-model="previewMode"
+            :items="[
+              {
+                text: 'HTML',
+                value: 'html',
+              },
+              {
+                text: 'PDF (Preview)',
+                value: 'pdf-preview',
+              },
+              {
+                text: 'PDF',
+                value: 'pdf',
+              },
+              {
+                text: 'Code',
+                value: 'code',
+              },
+            ]"
+            style="width: 170px"
+          />
+          <explainPreviewMode text="This is helpful info." />
 
           <div class="TTA-action" @click="alignHTML">
             <v-icon name="vertical_align_center" />
@@ -204,9 +223,20 @@
         </div>
         <iframe
           class="TTA-preview"
-          :src="computedTemplate"
+          :src="computedTemplate == 'rendering' ? undefined : computedTemplate"
+          :srcDoc="computedTemplate == 'rendering' ? HTML_SPINNER : undefined"
           :style="'width: ' + previewWidth + '%'"
         />
+
+        <VButton
+          @click="generatePDF()"
+          :icon="true"
+          :outlined="false"
+          id="generatePDF"
+          v-if="previewMode.startsWith('pdf')"
+        >
+          <v-icon name="refresh" />
+        </VButton>
       </div>
     </div>
     <v-table
@@ -240,6 +270,8 @@ import { useStores, useApi } from "@directus/extensions-sdk";
 import format from "html-format";
 import { Liquid } from "liquidjs";
 import TTAnav from "./TTAnav.vue";
+import explainPreviewMode from "./explainPreviewMode.vue";
+import { HTML_SPINNER } from "./constants.ts";
 
 const { useCollectionsStore, useFlowsStore } = useStores();
 
@@ -259,7 +291,8 @@ const templates = ref([]),
   templateDetails = ref(false),
   editTemplate = ref(false),
   currentPart = ref("Development"),
-  previewMode = ref([1]);
+  previewMode = ref("html"),
+  computedTemplate = ref("");
 
 const widthPartition = ref(50);
 
@@ -332,8 +365,6 @@ const collections = computed(() => {
 });
 
 const engine = new Liquid();
-let rendering = ref(false),
-  preview = ref("");
 
 watch(
   () => currentTemplate.value.id,
@@ -354,48 +385,11 @@ watch(
     currentTemplate.value.input_type,
     currentTemplate.value.input_flow,
     currentTemplate.value.input_fixed,
+    previewMode.value,
   ],
-  async () => {
-    rendering.value = true;
-    let html =
-      (currentTemplate.value.header || "") +
-      (currentTemplate.value.template || "") +
-      (currentTemplate.value.footer || "");
-
-    let input = {};
-
-    try {
-      if (currentTemplate.value.input_type == "Flow") {
-        const webhookOutput = await api.post(
-          "/flows/trigger/" + currentTemplate.value.input_flow,
-          JSON.parse(currentTemplate.value.input_flow_body)
-        );
-
-        if (typeof webhookOutput.data != "object") {
-          throw new Error(
-            "Output of flow should be an object, not an " +
-              typeof webhookOutput.data
-          );
-        }
-        if (
-          "name" in webhookOutput.data &&
-          "code" in webhookOutput.data &&
-          "status" in webhookOutput.data
-        ) {
-          throw new Error(JSON.stringify(webhookOutput.data));
-        }
-        input = webhookOutput.data;
-      } else {
-        if (currentTemplate.value.input_fixed == null)
-          currentTemplate.value.input_fixed = "{}";
-        input = JSON.parse(currentTemplate.value.input_fixed);
-      }
-      preview.value = await engine.render(engine.parse(html), input);
-    } catch (error: any) {
-      console.error(error);
-      preview.value = "Error occurred: " + (error?.message || error);
-    }
-    rendering.value = false;
+  () => {
+    if (["html", "code"].includes(previewMode.value))
+      generateHTML(previewMode.value);
   },
   {
     deep: true,
@@ -403,31 +397,113 @@ watch(
   }
 );
 
-const computedTemplate = computed(() => {
-  if (rendering.value) return "Rendering...";
-  let html =
-    (currentTemplate.value.header || "") +
-    (currentTemplate.value.template || "") +
-    (currentTemplate.value.footer || "");
-  if (previewMode.value[0] == 1) {
-    html = preview.value;
-  }
-  const blob = new Blob(
-    [
-      `<style>
+async function generateHTML(mode = "pdf" | "html" | "code") {
+  computedTemplate.value = "rendering";
+
+  let input = {};
+
+  try {
+    if (currentTemplate.value.input_type == "Flow") {
+      const webhookOutput = await api.post(
+        "/flows/trigger/" + currentTemplate.value.input_flow,
+        JSON.parse(currentTemplate.value.input_flow_body)
+      );
+
+      if (typeof webhookOutput.data != "object") {
+        throw new Error(
+          "Output of flow should be an object, not an " +
+            typeof webhookOutput.data
+        );
+      }
+      if (
+        "name" in webhookOutput.data &&
+        "code" in webhookOutput.data &&
+        "status" in webhookOutput.data
+      ) {
+        throw new Error(JSON.stringify(webhookOutput.data));
+      }
+      input = webhookOutput.data;
+    } else {
+      if (currentTemplate.value.input_fixed == null)
+        currentTemplate.value.input_fixed = "{}";
+      input = JSON.parse(currentTemplate.value.input_fixed);
+    }
+
+    console.log({ mode });
+    if (mode == "html" || mode == "code") {
+      const html =
+        (currentTemplate.value.header || "") +
+        (currentTemplate.value.template || "") +
+        (currentTemplate.value.footer || "");
+
+      const blob = new Blob(
+        [
+          `<style>
       .date:before{content: "Date here";font-style: italic; }
       .title:before{content: "Title here";font-style: italic; }
       .pageNumber:before{content: "Pagenumber";font-style: italic; }
       .totalPages:before{content: "Total pages";font-style: italic; }
-      </style>` + html,
-    ],
-    {
-      type: "text/html",
+      </style>` +
+            (mode == "code"
+              ? html
+              : await engine.render(engine.parse(html), input)),
+        ],
+        {
+          type: "text/html",
+        }
+      );
+      computedTemplate.value = URL.createObjectURL(blob);
+    } else {
+      const header = engine.parse(currentTemplate.value.header || "");
+      const tpl = engine.parse(currentTemplate.value.template);
+      const footer = engine.parse(currentTemplate.value.footer || "");
+      const headerRendered = await engine.render(header, input);
+      const htmlRendered = await engine.render(tpl, input);
+      const footerRendered = await engine.render(footer, input);
+
+      const settings = await api.get("/settings");
+
+      const download = await fetch(
+        "https://text-to-anything.p.rapidapi.com/generatePDF/" +
+          (previewMode.value == "pdf-preview" ? "preview" : ""),
+        {
+          body: JSON.stringify({
+            ...currentTemplate.value,
+            input_fixed: undefined,
+            input_flow: undefined,
+            input_flow_body: undefined,
+            input_type: undefined,
+            id: undefined,
+            header: headerRendered,
+            html: htmlRendered,
+            footer: footerRendered,
+            landscape: currentTemplate.value.orientation != "portrait",
+          }),
+          method: "POST",
+          headers: {
+            "X-RapidAPI-Key": settings.data.data.TTA_KEY,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+        .then((e) => e.blob())
+        .then((blob) => URL.createObjectURL(blob))
+        .catch(console.error);
+
+      console.log({ download });
+
+      computedTemplate.value = download;
     }
-  );
-  const objectUrl = URL.createObjectURL(blob);
-  return objectUrl;
-});
+  } catch (error: any) {
+    console.error(error);
+
+    computedTemplate.value = "Error occurred: " + (error?.message || error);
+  }
+}
+
+function generatePDF() {
+  generateHTML("pdf");
+}
 
 onMounted(async () => {
   widthPartition.value = parseInt(
@@ -509,6 +585,7 @@ function alignHTML() {
 
 .TTA-toolbar .right-side {
   display: flex;
+  align-items: center;
   gap: 5px;
 }
 
@@ -591,5 +668,11 @@ function alignHTML() {
 .max-w-input .v-input {
   max-width: 250px;
   margin-bottom: 5px;
+}
+
+#generatePDF {
+  position: fixed;
+  top: 69px;
+  right: 10px;
 }
 </style>
