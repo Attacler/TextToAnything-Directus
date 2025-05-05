@@ -192,7 +192,6 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
           chunks.push(chunk);
         }
 
-        console.log(file);
         const result = await globalThis.TTA.OCRbasedOnFileBuffer(
           Buffer.concat(chunks),
           file.filename_download,
