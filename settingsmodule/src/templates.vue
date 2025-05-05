@@ -429,7 +429,6 @@ async function generateHTML(mode = "pdf" | "html" | "code") {
       input = JSON.parse(currentTemplate.value.input_fixed);
     }
 
-    console.log({ mode });
     if (mode == "html" || mode == "code") {
       const html =
         (currentTemplate.value.header || "") +
@@ -461,10 +460,8 @@ async function generateHTML(mode = "pdf" | "html" | "code") {
       const htmlRendered = await engine.render(tpl, input);
       const footerRendered = await engine.render(footer, input);
 
-      const settings = await api.get("/settings");
-
       const download = await fetch(
-        "https://text-to-anything.p.rapidapi.com/generatePDF/" +
+        "/tta/pdf?preview=" +
           (previewMode.value == "pdf-preview" ? "preview" : ""),
         {
           body: JSON.stringify({
@@ -481,21 +478,23 @@ async function generateHTML(mode = "pdf" | "html" | "code") {
           }),
           method: "POST",
           headers: {
-            "X-RapidAPI-Key": settings.data.data.TTA_KEY,
             "Content-Type": "application/json",
           },
         }
       )
         .then((e) => e.blob())
-        .then((blob) => URL.createObjectURL(blob))
-        .catch(console.error);
-
-      console.log({ download });
+        .then((blob) => URL.createObjectURL(blob));
 
       computedTemplate.value = download;
     }
   } catch (error: any) {
     console.error(error);
+    notificationStore.add({
+      title: "Error while generating PDF",
+      text: `Please check your console/terminal for the error.`,
+      type: "error",
+      dialog: true,
+    });
 
     computedTemplate.value = "Error occurred: " + (error?.message || error);
   }

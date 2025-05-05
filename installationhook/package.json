@@ -20,5 +20,9 @@
 		"@directus/extensions-sdk": "9.22.1",
 		"@types/node": "^20.9.2",
 		"typescript": "^5.2.2"
+	},
+	"dependencies": {
+		"axios": "^1.9.0",
+		"form-data": "^4.0.2"
 	}
 }

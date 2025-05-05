@@ -2,6 +2,8 @@ import { toArray } from "@directus/shared/utils";
 import { defineHook } from "@directus/extensions-sdk";
 import { Liquid } from "liquidjs";
 import axios from "axios";
+import FormData from "form-data";
+import { createReadStream } from "node:fs";
 
 const engine = new Liquid();
 
@@ -123,7 +125,8 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         const download = await axios
           .post(
-            "https://text-to-anything.p.rapidapi.com/generatePDF",
+            "https://text-to-anything.p.rapidapi.com/generatePDF/" +
+              (context.preview ? "/preview" : "/"),
             context.pdfoptions,
             {
               headers: {
@@ -176,6 +179,68 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
           storage: toArray(env.STORAGE_LOCATIONS)[0],
         });
       },
+      async OCRBasedOnAsset(fileID: string, language: string, mode: string) {
+        const assetsService = new services.AssetsService({
+          schema: await getSchema(),
+        });
+
+        const { stream, file } = await assetsService.getAsset(fileID);
+
+        const chunks = [];
+
+        for await (const chunk of stream) {
+          chunks.push(chunk);
+        }
+
+        console.log(file);
+        const result = await globalThis.TTA.OCRbasedOnFileBuffer(
+          Buffer.concat(chunks),
+          file.filename_download,
+          language,
+          mode
+        );
+
+        return result;
+      },
+      async OCRbasedOnFileBuffer(
+        fileBuffer: any,
+        fileName: string,
+        language: string = "eng",
+        mode: string = "text"
+      ) {
+        const data = new FormData();
+        data.append("image", fileBuffer, {
+          filename: fileName,
+        });
+
+        const options = {
+          method: "POST",
+          url: "https://text-to-anything.p.rapidapi.com/ocr",
+          params: {
+            language,
+            mode,
+          },
+          headers: {
+            "x-rapidapi-key":
+              "fa563c29c7mshe54f5519a7044a7p1b7f75jsnb248544c2f7b",
+            "x-rapidapi-host": "text-to-anything.p.rapidapi.com",
+            ...data.getHeaders(),
+          },
+          data,
+        };
+
+        const response = await axios.request(options).catch((e) => {
+          logger.error("[TTA] " + e);
+        });
+
+        if (!response) {
+          return [];
+        }
+
+        return response.data;
+      },
+      _getRapidAPIKey: getRapidAPIKey,
+      _handleRapidAPIError: handleRapidAPIError,
     };
 
     async function addField(
