@@ -9,7 +9,6 @@ The installation process is explained in [The wiki](https://github.com/Attacler/
 
 ## Features
 
-
 <details>
   <summary><h3>OCR based on a file</h3></summary>
   More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-OCR" target="_blank">the wiki</a>.<br>
@@ -30,21 +29,21 @@ The installation process is explained in [The wiki](https://github.com/Attacler/
 
 ```js
 const fileID = await globalThis.TTA.generatePDF({
-    "pdfoptions": {
-        "html": "HTML body",
-        "footer":"HTML footer",
-        "footer":"HTML header",
-        "format": "A4",
-       "landscape": false,
-       "margin": 10,
-       "marginRight": 5,
-       "marginLeft": 500,
-    },
-    "filename": "file.pdf"
+  pdfoptions: {
+    html: "HTML body",
+    footer: "HTML footer",
+    footer: "HTML header",
+    format: "A4",
+    landscape: false,
+    margin: 10,
+    marginRight: 5,
+    marginLeft: 500,
+  },
+  filename: "file.pdf",
 });
 ```
-</details>
 
+</details>
 
 <details>
   <summary><h3>HTML PDF templates</h3></summary>
@@ -59,12 +58,11 @@ const fileID = await globalThis.TTA.generatePDF({
 ```js
 const fileID = await globalThis.TTA.generatePDFFromTemplate({
   template: templateIDHere,
-  templatevariables: { variableOne: "A", variableTwo: "B"}
+  templatevariables: { variableOne: "A", variableTwo: "B" },
 });
 ```
+
 </details>
-
-
 
 <details>
   <summary><h3>QR code generation</h3></summary>
@@ -75,13 +73,14 @@ const fileID = await globalThis.TTA.generatePDFFromTemplate({
 
 ```js
 const fileID = await globalThis.TTA.generateQRCode({
-    "content": "Your barcode content!",
-    "darkColor": "fff",
-    "lightColor": "000",
-    "margin": 2,
-    "width": 200
+  content: "Your barcode content!",
+  darkColor: "fff",
+  lightColor: "000",
+  margin: 2,
+  width: 200,
 });
 ```
+
 </details>
 
 <details>
@@ -93,13 +92,14 @@ const fileID = await globalThis.TTA.generateQRCode({
 
 ```js
 const fileID = await globalThis.TTA.generateBarCode({
-    "barcodeContent": "Your barcode content!",
-    "barcodeType": "code128",
-    "scale": 2,
-    "height": 10,
-    "includetext": true,
+  barcodeContent: "Your barcode content!",
+  barcodeType: "code128",
+  scale: 2,
+  height: 10,
+  includetext: true,
 });
 ```
+
 </details>
 
 <details>
@@ -117,6 +117,7 @@ You can also join our [Discord](https://discord.gg/dbEWUHGmnr) if you need direc
 ## Guides
 
 [How to generate invoice PDFs](https://attacler.medium.com/generating-invoice-pdfs-with-texttoanything-in-directus-e81c324010ac)
+
 ## FAQ
 
 <details>
@@ -151,5 +152,3 @@ We welcome all feedback and contributions. Please open an issue on <a href="http
 <br>
 To manage or cancel your subscription, please visit your <a href="https://rapidapi.com/developer/billing/subscriptions-and-usage">RapidAPI billing settings</a>.
 </details>
-
-
