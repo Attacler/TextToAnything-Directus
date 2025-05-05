@@ -6,48 +6,139 @@ Do you want to create PDFs, barcodes, and QR codes within Directus?
 This extension bundle offers the required operations to achieve that!
 !["Text to anything operations"](images/Operations.png?raw=true "Operations")
 
-## Supported Features
+The installation process is explained in [The wiki](https://github.com/Attacler/TextToAnything-Directus/wiki/Installation).
 
-The package currently supports the following operations:
+## Features
 
-- Create a PDF based on the provided HTML
-- Create a PDF based on a HTML Template
-- Create a QRCode
-- Create a Barcode
-- Download a file based on a flow
+<details>
+  <summary><h3>PDF generation based on HTML</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-from-HTML" target="_blank">the wiki</a>.<br>
+  <h4>HTML to PF inside Flows</h4>
+  <img src="https://github.com/user-attachments/assets/2ee7b857-ca3a-4d09-85eb-a5ddf3d5d57c">
+  <h4>HTML to PDF inside extensions</h4> <br>
 
-The actions work trough flow operations and will upload the PDF/QRCode/Barcode directly into Directus.
-The operation will return the Directus file id which you can use to link the file to a record.
+```js
+const fileID = await globalThis.TTA.generatePDF({
+    "pdfoptions": {
+        "html": "HTML body",
+        "footer":"HTML footer",
+        "footer":"HTML header",
+        "format": "A4",
+       "landscape": false,
+       "margin": 10,
+       "marginRight": 5,
+       "marginLeft": 500,
+    },
+    "filename": "file.pdf"
+});
+```
+</details>
+
+
+<details>
+  <summary><h3>HTML PDF templates</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-templates" target="_blank">the wiki</a>.<br>
+  Since creating a PDF template can be challenging when working solely with strings, this extension also includes a built-in template editor.<br>
+  <img src="https://github.com/user-attachments/assets/5a00fdad-789e-49c1-9895-17adbd80415b">
+  PDF generation based on a template can be done in 2 ways: <br>  
+  <h4>Template to PF inside Flows</h4>
+  <img src="https://github.com/user-attachments/assets/412a01fe-22e6-483c-aacf-a40b343a7720">
+  <h4>HTML to PDF inside extensions</h4> <br>
+
+```js
+const fileID = await globalThis.TTA.generatePDFFromTemplate({
+  template: templateIDHere,
+  templatevariables: { variableOne: "A", variableTwo: "B"}
+});
+```
+</details>
+
+
+
+<details>
+  <summary><h3>QR code generation</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-QRCodes" target="_blank">the wiki</a>.<br>
+  <h4>QR code generation inside Flows</h4>
+  <img src="https://github.com/user-attachments/assets/4dacc7bd-c8ce-47f1-a38c-fc3525b8f79b">
+  <h4>QR code generation inside extensions</h4> <br>
+
+```js
+const fileID = await globalThis.TTA.generateQRCode({
+    "content": "Your barcode content!",
+    "darkColor": "fff",
+    "lightColor": "000",
+    "margin": 2,
+    "width": 200
+});
+```
+</details>
+
+<details>
+  <summary><h3>Barcode generation</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-Barcode" target="_blank">the wiki</a>.<br>
+  <h4>Barcode generation inside Flows</h4>
+  <img src="https://github.com/user-attachments/assets/016b72ba-fd74-4c58-94fd-7cef2ce194e5">
+  <h4>Barcode generation inside extensions</h4> <br>
+
+```js
+const fileID = await globalThis.TTA.generateBarCode({
+    "barcodeContent": "Your barcode content!",
+    "barcodeType": "code128",
+    "scale": 2,
+    "height": 10,
+    "includetext": true,
+});
+```
+</details>
+
+<details>
+  <summary><h3>Download file interface from a flow</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-Download-file" target="_blank">the wiki</a>.<br>
+  The interface will display a button and download the file id returned by a flow, for example: <br>
+  <img src="https://github.com/user-attachments/assets/ce9c2b81-cb5d-4e67-93d3-6e42d92ed6ce">
+
+</details>
+<br>
 
 If there are any questions or bugs, please create an issue. <br>
 You can also join our [Discord](https://discord.gg/dbEWUHGmnr) if you need direct support.
 
-## Documentation
-
-- [Installation](https://github.com/Attacler/TextToAnything-Directus/wiki/Installation)
-- [Barcodes](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-Barcode)
-- [PDF from HTML](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-from-HTML)
-- [PDF from template](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-templates)
-- [QRcode](https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-QRCodes)
-
 ## Guides
 
 [How to generate invoice PDFs](https://attacler.medium.com/generating-invoice-pdfs-with-texttoanything-in-directus-e81c324010ac)
-
 ## FAQ
 
-1. How do i find or reset my Rapid API key?
+<details>
+<summary><strong>1. Is my data safe while using TTA?</strong></summary>
+<br>
+Yes — we do not store any of the content you generate or process on our servers.  <br>
+If you have any concerns regarding data security, feel free to reach out to us via our <a href="https://discord.gg/dbEWUHGmnr">Discord</a>.
+</details>
 
-You can follow [this article](https://docs.rapidapi.com/docs/keys-and-key-rotation#creating-or-rotating-a-rapid-api-key) in order to achieve this.
+<details>
+<summary><strong>2. Why does this extension require a RapidAPI key?</strong></summary>
+<br>
+This extension relies on a RapidAPI key for the following reasons: <br>
+- To offloading resources, for example generating a PDF from HTML requires alot of system packages and causes extra load on your system <br>
+- To support and fund ongoing development and maintenance
+</details>
 
-2. How can i stop my subscription?
+<details>
+<summary><strong>3. How can I find or reset my RapidAPI key?</strong></summary>
+<br>
+You can refer to <a href="https://docs.rapidapi.com/docs/keys-and-key-rotation#creating-or-rotating-a-rapid-api-key">this guide</a> for instructions on creating or rotating your RapidAPI key.
+</details>
 
-[Click here](https://rapidapi.com/developer/billing/subscriptions-and-usage) if you ever want to cancel your subscription
+<details>
+<summary><strong>4. I have a question, issue, or feature request — where should I go?</strong></summary>
+<br>
+We welcome all feedback and contributions. Please open an issue on <a href="https://github.com/Attacler/TextToAnything-Directus/issues">GitHub</a> or contact us in our <a href="https://discord.gg/dbEWUHGmnr">Discord</a>.
+</details>
 
-3. Will there be more features comming?
+<details>
+<summary><strong>5. How do I cancel my subscription?</strong></summary>
+<br>
+To manage or cancel your subscription, please visit your <a href="https://rapidapi.com/developer/billing/subscriptions-and-usage">RapidAPI billing settings</a>.
+</details>
 
-We are currently working on making this extension a solid stable version. After that we are planning to add HTML to Image.
 
-4. I have an issue or idea, where can i place it?
-
-Please create an issue on [Github](https://github.com/Attacler/TextToAnything-Directus)
