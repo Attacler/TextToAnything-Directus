@@ -2,18 +2,29 @@
 
 ## Introduction
 
-Do you want to create PDFs, barcodes, and QR codes within Directus?
+Do you want to create PDFs, barcodes, and QR codes or use OCR within Directus?
 This extension bundle offers the required operations to achieve that!
-!["Text to anything operations"](images/Operations.png?raw=true "Operations")
 
 The installation process is explained in [The wiki](https://github.com/Attacler/TextToAnything-Directus/wiki/Installation).
 
 ## Features
 
+
+<details>
+  <summary><h3>OCR based on a file</h3></summary>
+  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-OCR" target="_blank">the wiki</a>.<br>
+  <h4>OCR as interface</h4>
+  <img src="https://github.com/user-attachments/assets/0631dc3c-a804-4d3b-a891-38f265e389f9">
+  <h4>OCR inside of flows</h4>
+  <img src="https://github.com/user-attachments/assets/50279123-6c5f-4c1a-acfb-a2b16905cffc"> <br>
+  <h4>OCR inside extensions</h4>
+  Check the wiki for more information on using OCR inside of extensions.
+</details>
+
 <details>
   <summary><h3>PDF generation based on HTML</h3></summary>
   More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-from-HTML" target="_blank">the wiki</a>.<br>
-  <h4>HTML to PF inside Flows</h4>
+  <h4>HTML to PFD inside Flows</h4>
   <img src="https://github.com/user-attachments/assets/2ee7b857-ca3a-4d09-85eb-a5ddf3d5d57c">
   <h4>HTML to PDF inside extensions</h4> <br>
 
