@@ -1,4 +1,4 @@
-# directus-extension-texttoanything
+# Directus TextToAnything extension
 
 ## Introduction
 
