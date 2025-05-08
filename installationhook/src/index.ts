@@ -220,9 +220,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
             mode,
           },
           headers: {
-            "x-rapidapi-key":
-              "fa563c29c7mshe54f5519a7044a7p1b7f75jsnb248544c2f7b",
-            "x-rapidapi-host": "text-to-anything.p.rapidapi.com",
+            "X-RapidAPI-Key": await getRapidAPIKey(),
             ...data.getHeaders(),
           },
           data,
