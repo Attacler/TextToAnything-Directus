@@ -35,7 +35,6 @@
 </template>
 
 <script setup lang="ts">
-import renderOCRResponse from "./renderOCRResponse.vue";
 import { ref, reactive, onMounted, onUnmounted } from "vue";
 
 const emit = defineEmits(["close"]);

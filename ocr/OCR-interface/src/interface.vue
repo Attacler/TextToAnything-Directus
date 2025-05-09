@@ -20,12 +20,12 @@
         @change="ocrUpload"
         class="ocr-input"
         ref="inputRef"
-        accept="image/*"
+        accept="image/*,application/pdf"
       />
       <ocredrag v-if="uploadedFile != null" @close="closeOCR">
         <renderOCRResponse
           :image="uploadedFile"
-          @close="closeOCR"
+          @close="() => closeOCR()"
           :language="language"
           @loadingUpdate="processingOCR = $event"
         />
@@ -35,7 +35,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import renderOCRResponse from "./renderOCRResponse.vue";
 import ocredrag from "./ocredrag.vue";
 import { useStores } from "@directus/extensions-sdk";
@@ -70,19 +70,71 @@ onMounted(() => {
           "]";
         const find = document.querySelector(selector);
 
-        find.addEventListener("mouseover", (event) => {
-          const imgPreview = find.querySelector(".image-preview img");
+        if (find)
+          find.addEventListener("mouseover", (event) => {
+            const imgPreview = find.querySelector(".image-preview img");
 
-          if (imgPreview) {
-            const hasOCR = find.querySelector(".ocr_button");
+            if (imgPreview) {
+              const hasOCR = find.querySelector(".ocr_button");
 
-            if (!hasOCR && getIMGsrc(imgPreview)) {
-              imageButtons.value.push(selector + " .actions");
+              if (!hasOCR && getIMGsrc(imgPreview)) {
+                imageButtons.value.push(selector + " .actions");
+              }
             }
-          }
-        });
+          });
       }
     }, 500);
+
+    const findFileUploads = fieldsStore
+      .getFieldsForCollection(props.collection)
+      .filter((e) => e.meta?.interface == "file");
+
+    nextTick(() => {
+      setTimeout(() => {
+        for (const fileUpload of findFileUploads) {
+          const selector =
+            "[data-collection=" +
+            props.collection +
+            "][data-field=" +
+            fileUpload.field +
+            "]";
+
+          const find = document.querySelector(selector);
+
+          if (find) {
+            const input = find.querySelector("input");
+
+            input?.addEventListener("change", () => {
+              document.getElementById("_SCAN_OCR")?.remove();
+            });
+
+            find.addEventListener("click", () => {
+              setTimeout(() => {
+                const link = document.querySelector("a[download]");
+
+                if (link) {
+                  const cloned = link.cloneNode(true) as any;
+                  cloned.href = "#";
+                  cloned
+                    .querySelector("i")
+                    .setAttribute("data-icon", "camera_video");
+                  cloned.id = "_SCAN_OCR";
+                  cloned.classList.add("hide-by-default");
+                  cloned.children[1].innerText = "Scan with OCR";
+                  cloned.addEventListener("click", (event: any) => {
+                    event.preventDefault();
+
+                    clickImage(undefined, link.getAttribute("href")!);
+                  });
+                  link.parentNode?.insertBefore(cloned, link);
+                }
+              }, 100);
+            });
+          }
+        }
+      });
+    });
+
     shouldTeleport.value = true;
   });
 });
@@ -98,8 +150,8 @@ async function ocrUpload(event) {
   uploadedFile.value = file;
 }
 
-async function clickImage($event) {
-  const imageSRC = getIMGsrc($event.target.parentElement);
+async function clickImage($event, src?: string) {
+  const imageSRC = src || getIMGsrc($event.target.parentElement);
 
   if (imageSRC) {
     const image = await fetch(imageSRC).then((e) => e.blob());
@@ -149,5 +201,13 @@ function closeOCR() {
 
 .ocr-container .ocr-input {
   display: none;
+}
+
+.hide-by-default {
+  display: none;
+}
+
+a ~ #_SCAN_OCR {
+  display: block;
 }
 </style>

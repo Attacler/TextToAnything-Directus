@@ -68,6 +68,11 @@ export default {
       next();
     });
 
+    router.get("/pdf.worker.mjs", (req, res) => {
+      console.log(__dirname);
+      return res.sendFile(__dirname + "/pdf.worker.mjs");
+    });
+
     router.post("/pdf", express.json(), async (req, res) => {
       const {
         status,

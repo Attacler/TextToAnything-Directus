@@ -125,7 +125,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         const download = await axios
           .post(
-            "https://text-to-anything.p.rapidapi.com/generatePDF/" +
+            "https://text-to-anything.p.rapidapi.com/generatePDF" +
               (context.preview ? "/preview" : "/"),
             context.pdfoptions,
             {

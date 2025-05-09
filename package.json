@@ -42,16 +42,16 @@
         "type": "operation",
         "name": "GeneratePDF",
         "source": {
-          "app": "GeneratePDF/src/app.ts",
-          "api": "GeneratePDF/src/api.ts"
+          "app": "pdf/GeneratePDF/src/app.ts",
+          "api": "pdf/GeneratePDF/src/api.ts"
         }
       },
       {
         "type": "operation",
         "name": "GeneratePDFFromTemplate",
         "source": {
-          "app": "GeneratePDFGenerateFromTemplate/src/app.ts",
-          "api": "GeneratePDFGenerateFromTemplate/src/api.ts"
+          "app": "pdf/GeneratePDFGenerateFromTemplate/src/app.ts",
+          "api": "pdf/GeneratePDFGenerateFromTemplate/src/api.ts"
         }
       },
       {
@@ -75,17 +75,17 @@
       {
         "type": "interface",
         "name": "PDF template selector",
-        "source": "PDFTemplateSelector/src/index.ts"
+        "source": "pdf/PDFTemplateSelector/src/index.ts"
       },
       {
         "type": "interface",
         "name": "PDF generator interface",
-        "source": "GeneratePDFFromTemplateInterface/src/index.ts"
+        "source": "pdf/GeneratePDFFromTemplateInterface/src/index.ts"
       },
       {
         "type": "interface",
-        "name": "OCR-interface",
-        "source": "OCR-interface/src/index.ts"
+        "name": "ocr/OCR-interface",
+        "source": "ocr/OCR-interface/src/index.ts"
       },
       {
         "type": "endpoint",
@@ -96,8 +96,8 @@
         "type": "operation",
         "name": "OCR-operator",
         "source": {
-          "app": "OCR-operator/app.ts",
-          "api": "OCR-operator/api.ts"
+          "app": "ocr/OCR-operator/app.ts",
+          "api": "ocr/OCR-operator/api.ts"
         }
       }
     ],

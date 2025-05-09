@@ -2,7 +2,7 @@ import { defineInterface } from "@directus/extensions-sdk";
 import { computed } from "vue";
 import InterfaceComponent from "./interface.vue";
 import { useStores } from "@directus/extensions-sdk";
-import { languages } from "./languages.ts";
+import { languages } from "./languages";
 
 export default defineInterface({
   id: "tta-ocr-interface",
