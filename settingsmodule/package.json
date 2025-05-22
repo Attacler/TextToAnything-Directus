@@ -20,5 +20,8 @@
     "@directus/extensions-sdk": "9.22.1",
     "typescript": "^5.3.2",
     "vue": "^3.3.8"
+  },
+  "dependencies": {
+    "vue-json-pretty": "^2.4.0"
   }
 }

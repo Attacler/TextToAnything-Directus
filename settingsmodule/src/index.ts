@@ -1,7 +1,7 @@
 import { defineModule } from "@directus/extensions-sdk";
-import ModuleComponent from "./templates.vue";
-import settings from "./settings.vue";
-import usage from "./usage.vue";
+import ModuleComponent from "./pages/templates.vue";
+import settings from "./pages/settings.vue";
+import flowsLogExplorer from "./pages/flowLogsExplorer.vue";
 
 export default defineModule({
   id: "tta_settings",
@@ -21,8 +21,8 @@ export default defineModule({
       component: settings,
     },
     {
-      path: "usage",
-      component: usage,
+      path: "flowsLogExplorer",
+      component: flowsLogExplorer,
     },
   ],
 });

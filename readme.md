@@ -5,13 +5,13 @@
 Do you want to create PDFs, barcodes, and QR codes or use OCR within Directus?
 This extension bundle offers the required operations to achieve that!
 
-The installation process is explained in [The wiki](https://github.com/Attacler/TextToAnything-Directus/wiki/Installation).
+The installation process is explained in [The site](https://texttoanything.nl/docs/directus/).
 
 ## Features
 
 <details>
   <summary><h3>OCR based on a file</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-OCR" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/ocr" target="_blank">the wiki</a>.<br>
   <h4>OCR as interface</h4>
   <img src="https://github.com/user-attachments/assets/0631dc3c-a804-4d3b-a891-38f265e389f9">
   <h4>OCR inside of flows</h4>
@@ -22,9 +22,9 @@ The installation process is explained in [The wiki](https://github.com/Attacler/
 
 <details>
   <summary><h3>PDF generation based on HTML</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-from-HTML" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/pdf" target="_blank">the wiki</a>.<br>
   <h4>HTML to PFD inside Flows</h4>
-  <img src="https://github.com/user-attachments/assets/2ee7b857-ca3a-4d09-85eb-a5ddf3d5d57c">
+  <img src="https://texttoanything.nl/img/directus/pdf/flow-operation.png">
   <h4>HTML to PDF inside extensions</h4> <br>
 
 ```js
@@ -47,12 +47,12 @@ const fileID = await globalThis.TTA.generatePDF({
 
 <details>
   <summary><h3>HTML PDF templates</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-PDF-templates" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/pdftemplate" target="_blank">the wiki</a>.<br>
   Since creating a PDF template can be challenging when working solely with strings, this extension also includes a built-in template editor.<br>
-  <img src="https://github.com/user-attachments/assets/5a00fdad-789e-49c1-9895-17adbd80415b">
+  <img src="https://texttoanything.nl/img/directus/pdf/templates-editor.png">
   PDF generation based on a template can be done in 2 ways: <br>  
-  <h4>Template to PF inside Flows</h4>
-  <img src="https://github.com/user-attachments/assets/412a01fe-22e6-483c-aacf-a40b343a7720">
+  <h4>Template to PDF inside Flows</h4>
+  <img src="https://texttoanything.nl/img/directus/pdf/templates-operation.png">
   <h4>HTML to PDF inside extensions</h4> <br>
 
 ```js
@@ -66,9 +66,9 @@ const fileID = await globalThis.TTA.generatePDFFromTemplate({
 
 <details>
   <summary><h3>QR code generation</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-QRCodes" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/qrcode" target="_blank">the wiki</a>.<br>
   <h4>QR code generation inside Flows</h4>
-  <img src="https://github.com/user-attachments/assets/4dacc7bd-c8ce-47f1-a38c-fc3525b8f79b">
+  <img src="https://texttoanything.nl/img/directus/qrcode/flow-operation.png">
   <h4>QR code generation inside extensions</h4> <br>
 
 ```js
@@ -85,9 +85,9 @@ const fileID = await globalThis.TTA.generateQRCode({
 
 <details>
   <summary><h3>Barcode generation</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-Barcode" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/barcode" target="_blank">the site</a>.<br>
   <h4>Barcode generation inside Flows</h4>
-  <img src="https://github.com/user-attachments/assets/016b72ba-fd74-4c58-94fd-7cef2ce194e5">
+  <img src="https://texttoanything.nl/img/directus/barcode/flow-operation.png">
   <h4>Barcode generation inside extensions</h4> <br>
 
 ```js
@@ -104,10 +104,17 @@ const fileID = await globalThis.TTA.generateBarCode({
 
 <details>
   <summary><h3>Download file interface from a flow</h3></summary>
-  More info on <a href="https://github.com/Attacler/TextToAnything-Directus/wiki/Usage-%E2%80%90-Download-file" target="_blank">the wiki</a>.<br>
+  More info on <a href="https://texttoanything.nl/docs/directus/downloadfile-interface" target="_blank">the site</a>.<br>
   The interface will display a button and download the file id returned by a flow, for example: <br>
-  <img src="https://github.com/user-attachments/assets/ce9c2b81-cb5d-4e67-93d3-6e42d92ed6ce">
+  <img src="https://texttoanything.nl/img/directus/downloadfile/interface.png">
+</details>
+<br>
 
+<details>
+  <summary><h3>Flow logs explorer</h3></summary>
+  More info on <a href="https://texttoanything.nl/docs/directus/flows-logs-explorer" target="_blank">the website</a>.<br>
+  The module will show flow logs and let you filter on them: <br>
+  <img src="https://texttoanything.nl/img/directus/flows-logs-explorer/overview.png">
 </details>
 <br>
 

@@ -6,6 +6,12 @@
         <v-text-overflow text="Templates" />
       </v-list-item-content>
     </v-list-item>
+    <v-list-item to="/tta_settings/flowsLogExplorer">
+      <v-list-item-icon><v-icon name="short_text" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Flows log explorer" />
+      </v-list-item-content>
+    </v-list-item>
     <v-list-item to="/tta_settings/settings">
       <v-list-item-icon><v-icon name="settings" /></v-list-item-icon>
       <v-list-item-content>

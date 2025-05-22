@@ -269,13 +269,15 @@ import { computed, onMounted, ref, watch, nextTick } from "vue";
 import { useStores, useApi } from "@directus/extensions-sdk";
 import format from "html-format";
 import { Liquid } from "liquidjs";
-import TTAnav from "./TTAnav.vue";
-import explainPreviewMode from "./explainPreviewMode.vue";
-import { HTML_SPINNER } from "./constants.ts";
+import TTAnav from "../TTAnav.vue";
+import explainPreviewMode from "./templates/explainPreviewMode.vue";
+import { HTML_SPINNER } from "../constants.ts";
 
-const { useCollectionsStore, useFlowsStore } = useStores();
+const { useCollectionsStore, useFlowsStore, useNotificationsStore } =
+  useStores();
 
 const flowStore = useFlowsStore();
+const notificationStore = useNotificationsStore();
 
 const flowOptions = computed(() =>
   flowStore.flows
@@ -389,7 +391,7 @@ watch(
   ],
   () => {
     if (["html", "code"].includes(previewMode.value))
-      generateHTML(previewMode.value);
+      generateHTML(previewMode.value as any);
   },
   {
     deep: true,
@@ -397,7 +399,7 @@ watch(
   }
 );
 
-async function generateHTML(mode = "pdf" | "html" | "code") {
+async function generateHTML(mode: "pdf" | "html" | "code") {
   computedTemplate.value = "rendering";
 
   let input = {};
