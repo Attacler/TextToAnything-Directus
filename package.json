@@ -1,7 +1,7 @@
 {
   "name": "directus-extension-texttoanything",
   "description": "Generate PDF`s/QRcodes/Barcodes or use OCR within Directus!",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "icon": "text_fields",
   "author": {
     "name": "Attacler/Bart",
