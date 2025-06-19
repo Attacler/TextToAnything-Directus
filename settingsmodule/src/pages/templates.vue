@@ -575,11 +575,11 @@ function alignHTML() {
   z-index: 100;
   display: flex;
   flex-direction: column;
-  background-color: var(--background-subdued);
+  background-color: var(--theme--form--field--input--background-subdued);
 }
 
 .TTA-toolbar {
-  background-color: var(--background-subdued);
+  background-color: var(--theme--form--field--input--background-subdued);
   display: flex;
   justify-content: space-between;
 }

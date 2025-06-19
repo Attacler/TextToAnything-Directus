@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import VueJsonPretty from "vue-json-pretty";
 import "vue-json-pretty/lib/styles.css";
-import { computed, defineProps, ref } from "vue";
+import { computed, ref } from "vue";
 
 const currentPath = ref("");
 const { currentLog } = defineProps<{

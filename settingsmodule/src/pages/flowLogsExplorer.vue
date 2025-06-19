@@ -15,7 +15,8 @@ const currentFlow = ref(),
   toDate = ref(),
   inputFilter = ref(""),
   statusFilter = ref("all"),
-  currentLog = ref();
+  currentLog = ref(),
+  sortOrder = ref("Descending");
 
 onMounted(() => {
   const aWeekAgo = new Date();
@@ -40,6 +41,10 @@ async function fetchLogs() {
       "fields[0]": "*",
       "fields[1]": "activity.*",
       limit: 2000,
+      sort:
+        sortOrder.value == "Descending"
+          ? ["-activity.timestamp"]
+          : ["activity.timestamp"],
     },
   });
 
@@ -181,8 +186,11 @@ function isError(log: any) {
           <div class="field-name">To date</div>
           <dateTimePicker v-model="toDate" :value="toDate" v-if="toDate" />
         </div>
-
-        <v-button @click="fetchLogs" class="w-full grow">Search</v-button>
+        <div>
+          <div class="field-name">Sorting order</div>
+          <v-select v-model="sortOrder" :items="['Descending', 'Ascending']" />
+        </div>
+        <v-button @click="fetchLogs" :fullWidth="true">Search</v-button>
 
         <div>
           Input filter
