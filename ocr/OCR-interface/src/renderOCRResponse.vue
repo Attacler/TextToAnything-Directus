@@ -68,7 +68,7 @@ const hoveredIndex = ref(null),
   imageRef = ref(),
   selectedImage = ref(),
   selectedIndexes = ref([]),
-  blocks = ref([]),
+  hocr = ref(""),
   processingOCR = ref(false),
   renderedImages = ref<{ string: string; file: File; response?: any }[]>([]),
   currentImageIndex = ref(1);
@@ -156,7 +156,7 @@ async function loadImage(
   selectedImage.value = imgString;
 
   if (previouseResponse) {
-    blocks.value = previouseResponse;
+    hocr.value = previouseResponse;
     onImageLoad();
     return previouseResponse;
   }
@@ -180,9 +180,9 @@ async function loadImage(
       throw new Error(`Server error: ${response.status}`);
     }
 
-    result = await response.json();
+    result = await response.text();
 
-    blocks.value = result;
+    hocr.value = result;
     onImageLoad();
   } catch (e) {
     notificationStore.add({
@@ -210,30 +210,43 @@ function onImageLoad() {
   const imgHeight = img.naturalHeight;
   const displayWidth = img.clientWidth;
   const displayHeight = img.clientHeight;
-  const scaleX = displayWidth / imgWidth;
-  const scaleY = displayHeight / imgHeight;
 
   const words: any[] = [];
 
-  blocks.value.forEach((block) => {
-    block.paragraphs.forEach((paragraph) => {
-      paragraph.lines.forEach((line) => {
-        line.words.forEach((word) => {
-          const bbox = {
-            x0: word.bbox.x0 * scaleX,
-            y0: word.bbox.y0 * scaleY,
-            x1: word.bbox.x1 * scaleX,
-            y1: word.bbox.y1 * scaleY,
-          };
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(hocr.value, "text/html");
+  const spans = doc.querySelectorAll(".ocrx_word");
 
-          words.push({
-            text: word.text,
-            confidence: word.confidence,
-            bbox: bbox,
-          });
+  spans.forEach((span) => {
+    const title = span.getAttribute("title");
+    if (title) {
+      const bboxMatch = title.match(/bbox (\d+) (\d+) (\d+) (\d+)/);
+      if (bboxMatch) {
+        const [_, left, top, right, bottom] = bboxMatch.map(Number);
+
+        // Scale coordinates to match displayed image dimensions
+        const scaledLeft = (left! / imgWidth) * displayWidth;
+        const scaledTop = (top! / imgHeight) * displayHeight;
+        const scaledWidth = ((right! - left!) / imgWidth) * displayWidth;
+        const scaledHeight = ((bottom! - top!) / imgHeight) * displayHeight;
+
+        const bbox = {
+          x0: scaledLeft,
+          y0: scaledTop,
+          x1: scaledLeft + scaledWidth,
+          y1: scaledTop + scaledHeight,
+        };
+
+        words.push({
+          text: span.textContent!.trim(),
+          bbox: bbox,
         });
-      });
-    });
+      } else {
+        console.warn("Malformed bbox data for span:", span);
+      }
+    } else {
+      console.warn("Missing title attribute for span:", span);
+    }
   });
 
   textElements.value = words;

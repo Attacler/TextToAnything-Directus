@@ -115,7 +115,7 @@ export default {
         req.file.buffer,
         req.file.filename,
         language,
-        "blocks"
+        "hocr"
       );
       res.json(response);
     });

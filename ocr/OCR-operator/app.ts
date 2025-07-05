@@ -40,7 +40,6 @@ export default defineOperationApp({
           choices: [
             { text: "Text", value: "text" },
             { text: "Horc", value: "horc" },
-            { text: "Blocks", value: "blocks" },
           ],
         },
       },
