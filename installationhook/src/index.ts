@@ -167,7 +167,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
           .get("https://text-to-anything.p.rapidapi.com/generateQR", {
             params: context,
             headers: {
-              "X-RapidAPI-Key": context["RapidAPI token"],
+              "X-RapidAPI-Key": await getRapidAPIKey(),
             },
             responseType: "stream",
           })

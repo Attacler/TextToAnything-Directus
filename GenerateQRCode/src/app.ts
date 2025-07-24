@@ -27,7 +27,7 @@ export default defineOperationApp({
       type: "string",
       meta: {
         width: "full",
-        interface: "input",
+        interface: "select-color",
       },
     },
     {
@@ -36,7 +36,7 @@ export default defineOperationApp({
       type: "string",
       meta: {
         width: "full",
-        interface: "input",
+        interface: "select-color",
       },
     },
     {
