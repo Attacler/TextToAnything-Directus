@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, ref } from "vue";
-import { useApi, useStores } from "@directus/extensions-sdk";
+import { useApi } from "@directus/extensions-sdk";
 import TTAnav from "../TTAnav.vue";
 
 const rapidKey = ref("");

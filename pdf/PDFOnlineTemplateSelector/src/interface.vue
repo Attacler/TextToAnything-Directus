@@ -10,7 +10,7 @@ const api = inject<any>("api");
 const emit = defineEmits(["input"]),
   props = defineProps(["value"]);
 
-const value = ref(""),
+const value = ref<number | null>(0),
   templates = ref([]);
 
 onMounted(async () => {
@@ -23,13 +23,15 @@ onMounted(async () => {
     }
   );
 
-  const getTemplates = await api.get("/items/TTA_htmltemplates");
+  const getTemplates = await api.get("/tta/pdf/onlineTemplates");
 
-  templates.value = getTemplates.data.data.map((e) => ({
+  templates.value = getTemplates.data.map((e) => ({
     text: e.name,
     value: e.id,
   }));
 
-  value.value = props.value;
+  if (getTemplates.data.find((e) => e.id == props.value))
+    value.value = parseInt(props.value);
+  else value.value = null;
 });
 </script>

@@ -93,6 +93,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         return await fileSerice.uploadOne(download.data, {
           filename_download: "barcode-" + context.barcodeContent + ".gif",
+          title: "barcode-" + context.barcodeContent + ".gif",
           type: download.headers["content-type"],
           storage: toArray(env.STORAGE_LOCATIONS)[0],
         });
@@ -139,6 +140,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         return await fileSerice.uploadOne(download.data, {
           filename_download: context.filename || new Date().getTime() + ".pdf",
+          title: context.filename || new Date().getTime() + ".pdf",
           type: download.headers["content-type"],
           storage: toArray(env.STORAGE_LOCATIONS)[0],
         });
@@ -158,6 +160,34 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
           },
         });
       },
+      async generatePDFFromOnlineTemplate(context: any) {
+        const fileSerice = new services.FilesService({
+          schema: await getSchema(),
+        });
+
+        const download = await axios
+          .post(
+            "https://text-to-anything.p.rapidapi.com/generatePDF/template",
+            {
+              templateID: context.template,
+              templateData: context.templatevariables,
+            },
+            {
+              headers: {
+                "X-RapidAPI-Key": await getRapidAPIKey(),
+              },
+              responseType: "stream",
+            }
+          )
+          .catch(handleRapidAPIError);
+
+        return await fileSerice.uploadOne(download.data, {
+          filename_download: context.filename || new Date().getTime() + ".pdf",
+          title: context.filename || new Date().getTime() + ".pdf",
+          type: download.headers["content-type"],
+          storage: toArray(env.STORAGE_LOCATIONS)[0],
+        });
+      },
       async generateQRCode(context: any) {
         const fileSerice = new services.FilesService({
           schema: await getSchema(),
@@ -175,6 +205,7 @@ export default defineHook(({}, { services, getSchema, logger, env }) => {
 
         return await fileSerice.uploadOne(download.data, {
           filename_download: "qrcode-" + context.qrcodeContent + ".png",
+          title: "qrcode-" + context.qrcodeContent + ".png",
           type: download.headers["content-type"],
           storage: toArray(env.STORAGE_LOCATIONS)[0],
         });

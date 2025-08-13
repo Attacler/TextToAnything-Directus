@@ -1,5 +1,5 @@
 <template>
-  <private-view title="Templates">
+  <private-view title="Offline templates">
     <template #navigation>
       <TTAnav />
     </template>
@@ -239,6 +239,7 @@
         </VButton>
       </div>
     </div>
+
     <v-table
       :headers="[
         {
@@ -261,6 +262,13 @@
       @click:row="openTemplate"
       :items="templates"
     />
+    <div class="tta-notice">
+      <VNotice>
+        You can create online templates in the&nbsp;
+        <a href="https://app.texttoanything.nl" target="_blank">TTA app</a
+        >&nbsp; for a better editor experience.
+      </VNotice>
+    </div>
   </private-view>
 </template>
 
@@ -675,5 +683,9 @@ function alignHTML() {
   position: fixed;
   top: 69px;
   right: 10px;
+}
+
+.tta-notice {
+  padding: 10px;
 }
 </style>

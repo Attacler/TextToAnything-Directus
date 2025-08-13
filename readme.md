@@ -49,6 +49,7 @@ const fileID = await globalThis.TTA.generatePDF({
   <summary><h3>HTML PDF templates</h3></summary>
   More info on <a href="https://texttoanything.nl/docs/directus/pdftemplate" target="_blank">the wiki</a>.<br>
   Since creating a PDF template can be challenging when working solely with strings, this extension also includes a built-in template editor.<br>
+  Keep in mind that when using online mode, you will need to link your RapidAPI account <a href="https://texttoanything.nl/docs/dashboard/link-rapid-api-user">see this article for more details</a>
   <img src="https://texttoanything.nl/img/directus/pdf/templates-editor.png">
   PDF generation based on a template can be done in 2 ways: <br>  
   <h4>Template to PDF inside Flows</h4>
@@ -59,6 +60,17 @@ const fileID = await globalThis.TTA.generatePDF({
 const fileID = await globalThis.TTA.generatePDFFromTemplate({
   template: templateIDHere,
   templatevariables: { variableOne: "A", variableTwo: "B" },
+  mode: "online",
+});
+```
+
+Offline mode will use the templates configured inside of Directus itself:
+
+```js
+const fileID = await globalThis.TTA.generatePDFFromTemplate({
+  template: templateIDHere,
+  templatevariables: { variableOne: "A", variableTwo: "B" },
+  mode: "offline",
 });
 ```
 

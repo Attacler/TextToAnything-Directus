@@ -69,7 +69,6 @@ export default {
     });
 
     router.get("/pdf.worker.mjs", (req, res) => {
-      console.log(__dirname);
       return res.sendFile(__dirname + "/pdf.worker.mjs");
     });
 
@@ -83,6 +82,30 @@ export default {
           "https://text-to-anything.p.rapidapi.com/generatePDF/" +
             (req.query?.preview ? "preview" : ""),
           req.body,
+          {
+            headers: {
+              "X-RapidAPI-Key": await globalThis.TTA._getRapidAPIKey(),
+            },
+            responseType: "stream",
+            decompress: false,
+          }
+        )
+        .catch(globalThis.TTA._handleRapidAPIError);
+
+      res.status(status);
+      res.set(headers);
+
+      bodyStream.pipe(res);
+    });
+
+    router.get("/pdf/onlineTemplates", express.json(), async (req, res) => {
+      const {
+        status,
+        headers,
+        data: bodyStream,
+      } = await axios
+        .get(
+          "https://text-to-anything.p.rapidapi.com/dashboard/pdf/templates",
           {
             headers: {
               "X-RapidAPI-Key": await globalThis.TTA._getRapidAPIKey(),

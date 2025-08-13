@@ -1,5 +1,11 @@
 <template>
   <v-list nav>
+    <v-list-item href="https://app.texttoanything.nl/">
+      <v-list-item-icon><v-icon name="open_in_new" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Text to anything dashboard" />
+      </v-list-item-content>
+    </v-list-item>
     <v-list-item to="/tta_settings/templates">
       <v-list-item-icon><v-icon name="code" /></v-list-item-icon>
       <v-list-item-content>

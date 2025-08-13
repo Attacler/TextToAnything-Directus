@@ -36,7 +36,7 @@ async function fetchLogs() {
         ? fromDate.value
         : undefined,
       "filter[_and][4][activity][timestamp][_lte]": toDate.value
-        ? toDate.value
+        ? toDate.value + "T23:59:59"
         : undefined,
       "fields[0]": "*",
       "fields[1]": "activity.*",
