@@ -257,8 +257,15 @@ export default defineHook(
             chunks.push(chunk);
           }
 
+          const buffer = Buffer.concat(chunks);
+
+          if(buffer.byteLength > 50000000){
+            logger.warn("[TTA] " + fileID + " has been ignored because of the file 50MB file limit.")
+              return;
+          }
+
           const data = new FormData();
-          data.append("file", Buffer.concat(chunks), {
+          data.append("file", buffer, {
             filename: file.filename_download,
           });
 

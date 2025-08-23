@@ -12,6 +12,7 @@ export function setupVirusscanner(
       return;
     }
 
+    
     const { FilesService, FoldersService } = services;
 
     const folderService = new FoldersService({
@@ -23,12 +24,12 @@ export function setupVirusscanner(
     });
 
     if (getFolder.TTA_VIRUSSCAN_ENABLED != true) {
-      return;
+        return;
     }
 
     const scanFile = await globalThis.TTA.virusscanAsset(params.key);
     
-    if (scanFile.isInfected) {
+    if (scanFile?.isInfected) {
       if (settings.TTA_VIRUSSCANNER_MODE == "delete") {
         const filesService = new FilesService({
           schema: context.schema,
