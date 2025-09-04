@@ -77,18 +77,6 @@
                   />
                 </v-list-item-content>
               </v-list-item>
-              <v-list-item>
-                <v-list-item-content>
-                  <div class="field half">
-                    <div class="type-label">Collection</div>
-                  </div>
-                  <v-select
-                    v-model="currentTemplate.collection"
-                    :items="collections"
-                    placeholder="Collection"
-                  />
-                </v-list-item-content>
-              </v-list-item>
             </v-list>
           </v-card-text>
 
@@ -166,9 +154,6 @@
         <div :style="'width: ' + editorWidth + '%'" class="TTA-editor-wrapper">
           <template v-if="currentPart == 'Development'">
             <div class="devFields">
-              <div class="field half">
-                <div class="type-label">Type input</div>
-              </div>
               <v-select
                 v-model="currentTemplate.input_type"
                 class="max-w-input"
@@ -245,23 +230,40 @@
         {
           text: 'Name',
           value: 'name',
+          sortable: false
         },
         {
           text: 'Description',
           value: 'description',
-        },
-        {
-          text: 'Collection',
-          value: 'collection',
+          width: 600,
+          sortable: false
         },
         {
           text: 'Format',
           value: 'format',
+          sortable: false
+        },
+        {
+          text: '',
+          value: 'del',
+          width: 60,
+          sortable: false
         },
       ]"
       @click:row="openTemplate"
       :items="templates"
-    />
+    >
+      <template #item.del="{ item }"
+        ><VButton
+          @click.stop="removeTemplate(item.id)"
+          :outlined="true"
+          :icon="true"
+          :rounded="true"
+        >
+          <VIcon name="delete" />
+        </VButton>
+      </template>
+    </v-table>
     <div class="tta-notice">
       <VNotice>
         You can create online templates in the&nbsp;
@@ -269,6 +271,20 @@
         >&nbsp; for a better editor experience.
       </VNotice>
     </div>
+
+    <v-dialog v-model="deleting" :persistent="true">
+      <v-card>
+        <v-card-title>
+          Are you sure you want to delete this item? This action can not be
+          undone.
+        </v-card-title>
+
+        <v-card-actions>
+          <v-button secondary @click="deleting = false"> Cancel </v-button>
+          <v-button kind="danger" @click="confirmDelete"> Proceed </v-button>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </private-view>
 </template>
 
@@ -302,7 +318,9 @@ const templates = ref([]),
   editTemplate = ref(false),
   currentPart = ref("Development"),
   previewMode = ref("html"),
-  computedTemplate = ref("");
+  computedTemplate = ref(""),
+  deleting = ref(false),
+  deletingID = ref();
 
 const widthPartition = ref(50);
 
@@ -363,17 +381,6 @@ const defaultTemplate = {
 
 const currentTemplate = ref(structuredClone(defaultTemplate));
 
-const collectionsStore = useCollectionsStore();
-
-const collections = computed(() => {
-  return collectionsStore.collections
-    .filter((e: any) => e.collection != "TTA_htmltemplates")
-    .map((e: any) => ({
-      text: e.name,
-      value: e.collection,
-    }));
-});
-
 const engine = new Liquid();
 
 watch(
@@ -408,6 +415,9 @@ watch(
 );
 
 async function generateHTML(mode: "pdf" | "html" | "code") {
+  if(currentTemplate.value.input_type == 'Flow' && !currentTemplate.value.input_flow){
+    return;
+  }
   computedTemplate.value = "rendering";
 
   let input = {};
@@ -506,7 +516,9 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
       dialog: true,
     });
 
-    computedTemplate.value = "Error occurred: " + (error?.message || error);
+    computedTemplate.value =URL.createObjectURL(
+    new Blob([("Error occurred: " + (error?.message || error))] , {type:'text/html'})
+  );
   }
 }
 
@@ -554,6 +566,17 @@ async function saveTemplate() {
   templateDetails.value = false;
 
   fetchTemplates();
+}
+
+function removeTemplate(id: number) {
+  deletingID.value = id;
+  deleting.value = true;
+}
+
+async function confirmDelete() {
+  await api.delete("/items/TTA_htmltemplates/" + deletingID.value);
+  templates.value = templates.value.filter((e) => e.id != deletingID.value);
+  deleting.value = false;
 }
 
 function openTemplate({ item }: any) {
