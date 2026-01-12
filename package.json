@@ -1,129 +1,129 @@
 {
-  "name": "directus-extension-texttoanything",
-  "description": "Generate PDF`s/QRcodes/Barcodes, use OCR and virusscanner within Directus!",
-  "version": "1.7.2",
-  "icon": "text_fields",
-  "author": {
-    "name": "Attacler/Bart",
-    "email": "info@texttoanything.nl"
-  },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/Attacler/TextToAnything-Directus/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Attacler/TextToAnything-Directus.git"
-  },
-  "keywords": [
-    "directus",
-    "directus-extension",
-    "directus-custom-bundle"
-  ],
-  "files": [
-    "dist"
-  ],
-  "directus:extension": {
-    "type": "bundle",
-    "path": {
-      "app": "dist/app.js",
-      "api": "dist/api.js"
+    "name": "directus-extension-texttoanything",
+    "description": "Generate PDF`s/QRcodes/Barcodes, use OCR and virusscanner within Directus!",
+    "version": "1.7.3",
+    "icon": "text_fields",
+    "author": {
+        "name": "Attacler/Bart",
+        "email": "info@texttoanything.nl"
     },
-    "entries": [
-      {
-        "type": "operation",
-        "name": "GenerateBarcode",
-        "source": {
-          "app": "GenerateBarcode/src/app.ts",
-          "api": "GenerateBarcode/src/api.ts"
-        }
-      },
-      {
-        "type": "operation",
-        "name": "GeneratePDF",
-        "source": {
-          "app": "pdf/GeneratePDF/src/app.ts",
-          "api": "pdf/GeneratePDF/src/api.ts"
-        }
-      },
-      {
-        "type": "operation",
-        "name": "GeneratePDFFromTemplate",
-        "source": {
-          "app": "pdf/GeneratePDFGenerateFromTemplate/src/app.ts",
-          "api": "pdf/GeneratePDFGenerateFromTemplate/src/api.ts"
-        }
-      },
-      {
-        "type": "operation",
-        "name": "GenerateQRCode",
-        "source": {
-          "app": "GenerateQRCode/src/app.ts",
-          "api": "GenerateQRCode/src/api.ts"
-        }
-      },
-      {
-        "type": "hook",
-        "name": "bootstrap",
-        "source": "installationhook/src/index.ts"
-      },
-      {
-        "type": "module",
-        "name": "settings module",
-        "source": "settingsmodule/src/index.ts"
-      },
-      {
-        "type": "interface",
-        "name": "Online PDF template selector",
-        "source": "pdf/PDFOnlineTemplateSelector/src/index.ts"
-      },
-      {
-        "type": "interface",
-        "name": "PDF template selector",
-        "source": "pdf/PDFTemplateSelector/src/index.ts"
-      },
-      {
-        "type": "interface",
-        "name": "PDF generator interface",
-        "source": "pdf/GeneratePDFFromTemplateInterface/src/index.ts"
-      },
-      {
-        "type": "interface",
-        "name": "ocr/OCR-interface",
-        "source": "ocr/OCR-interface/src/index.ts"
-      },
-      {
-        "type": "endpoint",
-        "name": "Text To Anything endpoint",
-        "source": "TTA-endpoint/src/index.ts"
-      },
-      {
-        "type": "operation",
-        "name": "OCR-operator",
-        "source": {
-          "app": "ocr/OCR-operator/app.ts",
-          "api": "ocr/OCR-operator/api.ts"
-        }
-      }
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/Attacler/TextToAnything-Directus/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Attacler/TextToAnything-Directus.git"
+    },
+    "keywords": [
+        "directus",
+        "directus-extension",
+        "directus-custom-bundle"
     ],
-    "host": "^10.0.0 || ^11.0.0"
-  },
-  "scripts": {
-    "build": "directus-extension build",
-    "dev": "directus-extension build -w --no-minify",
-    "add": "directus-extension add"
-  },
-  "devDependencies": {
-    "@directus/extensions-sdk": "9.22.1",
-    "@types/node": "^22.15.3",
-    "typescript": "^5.8.3",
-    "vue": "^3.5.13"
-  },
-  "dependencies": {
-    "busboy": "^1.6.0",
-    "html-format": "^1.1.6",
-    "liquidjs": "^10.21.1",
-    "pdfjs-dist": "^5.3.31",
-    "vue-json-pretty": "^2.4.0"
-  }
+    "files": [
+        "dist"
+    ],
+    "directus:extension": {
+        "type": "bundle",
+        "path": {
+            "app": "dist/app.js",
+            "api": "dist/api.js"
+        },
+        "entries": [
+            {
+                "type": "operation",
+                "name": "GenerateBarcode",
+                "source": {
+                    "app": "GenerateBarcode/src/app.ts",
+                    "api": "GenerateBarcode/src/api.ts"
+                }
+            },
+            {
+                "type": "operation",
+                "name": "GeneratePDF",
+                "source": {
+                    "app": "pdf/GeneratePDF/src/app.ts",
+                    "api": "pdf/GeneratePDF/src/api.ts"
+                }
+            },
+            {
+                "type": "operation",
+                "name": "GeneratePDFFromTemplate",
+                "source": {
+                    "app": "pdf/GeneratePDFGenerateFromTemplate/src/app.ts",
+                    "api": "pdf/GeneratePDFGenerateFromTemplate/src/api.ts"
+                }
+            },
+            {
+                "type": "operation",
+                "name": "GenerateQRCode",
+                "source": {
+                    "app": "GenerateQRCode/src/app.ts",
+                    "api": "GenerateQRCode/src/api.ts"
+                }
+            },
+            {
+                "type": "hook",
+                "name": "bootstrap",
+                "source": "installationhook/src/index.ts"
+            },
+            {
+                "type": "module",
+                "name": "settings module",
+                "source": "settingsmodule/src/index.ts"
+            },
+            {
+                "type": "interface",
+                "name": "Online PDF template selector",
+                "source": "pdf/PDFOnlineTemplateSelector/src/index.ts"
+            },
+            {
+                "type": "interface",
+                "name": "PDF template selector",
+                "source": "pdf/PDFTemplateSelector/src/index.ts"
+            },
+            {
+                "type": "interface",
+                "name": "PDF generator interface",
+                "source": "pdf/GeneratePDFFromTemplateInterface/src/index.ts"
+            },
+            {
+                "type": "interface",
+                "name": "ocr/OCR-interface",
+                "source": "ocr/OCR-interface/src/index.ts"
+            },
+            {
+                "type": "endpoint",
+                "name": "Text To Anything endpoint",
+                "source": "TTA-endpoint/src/index.ts"
+            },
+            {
+                "type": "operation",
+                "name": "OCR-operator",
+                "source": {
+                    "app": "ocr/OCR-operator/app.ts",
+                    "api": "ocr/OCR-operator/api.ts"
+                }
+            }
+        ],
+        "host": "^10.0.0 || ^11.0.0"
+    },
+    "scripts": {
+        "build": "directus-extension build",
+        "dev": "directus-extension build -w --no-minify",
+        "add": "directus-extension add"
+    },
+    "devDependencies": {
+        "@directus/extensions-sdk": "9.22.1",
+        "@types/node": "^22.15.3",
+        "typescript": "^5.8.3",
+        "vue": "^3.5.13"
+    },
+    "dependencies": {
+        "busboy": "^1.6.0",
+        "html-format": "^1.1.6",
+        "liquidjs": "^10.21.1",
+        "pdfjs-dist": "^5.3.31",
+        "vue-json-pretty": "^2.4.0"
+    }
 }
