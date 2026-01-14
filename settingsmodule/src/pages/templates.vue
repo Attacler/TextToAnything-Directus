@@ -316,14 +316,13 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch, nextTick } from "vue";
 import { useStores, useApi } from "@directus/extensions-sdk";
-import format from "html-format";
+import { html } from "js-beautify";
 import { Liquid } from "liquidjs";
 import TTAnav from "../TTAnav.vue";
 import explainPreviewMode from "./templates/explainPreviewMode.vue";
 import { HTML_SPINNER } from "../constants.ts";
 
-const { useCollectionsStore, useFlowsStore, useNotificationsStore } =
-    useStores();
+const { useFlowsStore, useNotificationsStore } = useStores();
 
 const flowStore = useFlowsStore();
 const notificationStore = useNotificationsStore();
@@ -360,16 +359,20 @@ const editorWidth = computed(() => {
 
 const currentHTML = ref("");
 
+function updateCurrentHTML() {
+    if (currentPart.value == "Development") currentHTML.value = "";
+    if (currentPart.value == "Header")
+        currentHTML.value = currentTemplate.value.header;
+    if (currentPart.value == "Body")
+        currentHTML.value = currentTemplate.value.template;
+    if (currentPart.value == "Footer")
+        currentHTML.value = currentTemplate.value.footer;
+}
+
 watch(
     () => currentPart.value,
-    (newPart) => {
-        if (newPart == "Development") currentHTML.value = "";
-        if (newPart == "Header")
-            currentHTML.value = currentTemplate.value.header;
-        if (newPart == "Body")
-            currentHTML.value = currentTemplate.value.template;
-        if (newPart == "Footer")
-            currentHTML.value = currentTemplate.value.footer;
+    () => {
+        updateCurrentHTML();
     },
     {
         immediate: true,
@@ -626,9 +629,24 @@ function closeEditor() {
 }
 
 function alignHTML() {
-    currentTemplate.value.template = format(currentTemplate.value.template);
-    currentTemplate.value.footer = format(currentTemplate.value.footer);
-    currentTemplate.value.header = format(currentTemplate.value.header);
+    const alignOptions = {
+        wrap_line_length: 0,
+        indent_inner_html: true,
+    };
+    currentTemplate.value.template = html(
+        currentTemplate.value.template,
+        alignOptions
+    );
+    currentTemplate.value.footer = html(
+        currentTemplate.value.footer,
+        alignOptions
+    );
+    currentTemplate.value.header = html(
+        currentTemplate.value.header,
+        alignOptions
+    );
+
+    updateCurrentHTML();
 }
 </script>
 
