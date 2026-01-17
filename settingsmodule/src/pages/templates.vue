@@ -77,14 +77,16 @@
                                     <v-select
                                         v-model="currentTemplate.orientation"
                                         placeholder="Orientation"
-                                        :items="
-                                            ['portrait', 'landscape'].map(
-                                                (e) => ({
-                                                    text: e,
-                                                    value: e,
-                                                })
-                                            )
-                                        "
+                                        :items="[
+                                            {
+                                                value: 'portrait',
+                                                text: 'Portrait',
+                                            },
+                                            {
+                                                value: 'landscape',
+                                                text: 'Landscape',
+                                            },
+                                        ]"
                                     />
                                 </v-list-item-content>
                             </v-list-item>
@@ -139,10 +141,18 @@
                     />
                     <explainPreviewMode text="This is helpful info." />
 
-                    <div class="TTA-action" @click="alignHTML">
+                    <div
+                        class="TTA-action"
+                        @click="alignHTML"
+                        v-tooltip.bottom="'Click to format your HTML'"
+                    >
                         <v-icon name="vertical_align_center" />
                     </div>
-                    <div class="TTA-action" @click="saveTemplate">
+                    <div
+                        class="TTA-action"
+                        @click="saveTemplate"
+                        v-tooltip.bottom="'Click to save the template'"
+                    >
                         <v-icon name="save" />
                     </div>
 
@@ -331,11 +341,11 @@ const flowOptions = computed(() =>
     flowStore.flows
         .filter(
             (flow: any) =>
-                flow.trigger === "webhook" && flow.options.method == "POST"
+                flow.trigger === "webhook" && flow.options.method == "POST",
         )
         .map((flow: any) => {
             return { text: flow.name, value: flow.id };
-        })
+        }),
 );
 
 const templates = ref([]),
@@ -376,7 +386,7 @@ watch(
     },
     {
         immediate: true,
-    }
+    },
 );
 
 function changeHTML(html: string) {
@@ -421,7 +431,7 @@ watch(
         nextTick(() => {
             currentPart.value = "Body";
         });
-    }
+    },
 );
 
 watch(
@@ -441,7 +451,7 @@ watch(
     {
         deep: true,
         immediate: true,
-    }
+    },
 );
 
 async function generateHTML(mode: "pdf" | "html" | "code") {
@@ -459,13 +469,13 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
         if (currentTemplate.value.input_type == "Flow") {
             const webhookOutput = await api.post(
                 "/flows/trigger/" + currentTemplate.value.input_flow,
-                JSON.parse(currentTemplate.value.input_flow_body)
+                JSON.parse(currentTemplate.value.input_flow_body),
             );
 
             if (typeof webhookOutput.data != "object") {
                 throw new Error(
                     "Output of flow should be an object, not an " +
-                        typeof webhookOutput.data
+                        typeof webhookOutput.data,
                 );
             }
             if (
@@ -502,7 +512,7 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
                 ],
                 {
                     type: "text/html",
-                }
+                },
             );
             computedTemplate.value = URL.createObjectURL(blob);
         } else {
@@ -534,7 +544,7 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                }
+                },
             )
                 .then((e) => e.blob())
                 .then((blob) => URL.createObjectURL(blob));
@@ -553,7 +563,7 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
         computedTemplate.value = URL.createObjectURL(
             new Blob(["Error occurred: " + (error?.message || error)], {
                 type: "text/html",
-            })
+            }),
         );
     }
 }
@@ -564,7 +574,7 @@ function generatePDF() {
 
 onMounted(async () => {
     widthPartition.value = parseInt(
-        localStorage.getItem("TTA-widthPartition") || "50"
+        localStorage.getItem("TTA-widthPartition") || "50",
     );
 
     fetchTemplates();
@@ -572,7 +582,7 @@ onMounted(async () => {
 
 watch(
     () => widthPartition.value,
-    (newval) => localStorage.setItem("TTA-widthPartition", newval + "")
+    (newval) => localStorage.setItem("TTA-widthPartition", newval + ""),
 );
 
 async function fetchTemplates() {
@@ -598,7 +608,7 @@ async function saveTemplate() {
             {
                 ...currentTemplate.value,
                 id: undefined,
-            }
+            },
         );
     }
 
@@ -635,15 +645,15 @@ function alignHTML() {
     };
     currentTemplate.value.template = html(
         currentTemplate.value.template,
-        alignOptions
+        alignOptions,
     );
     currentTemplate.value.footer = html(
         currentTemplate.value.footer,
-        alignOptions
+        alignOptions,
     );
     currentTemplate.value.header = html(
         currentTemplate.value.header,
-        alignOptions
+        alignOptions,
     );
 
     updateCurrentHTML();
@@ -717,7 +727,6 @@ function alignHTML() {
     flex-grow: 1;
     height: 100%;
     width: 100%;
-    max-height: calc(100vh - 130px);
 }
 .TTA-wapper .TTA-editor-wrapper {
     position: relative;
@@ -730,6 +739,11 @@ function alignHTML() {
 
 .TTA-editor .CodeMirror {
     height: 100%;
+}
+.TTA-editor .CodeMirror-dialog.CodeMirror-dialog-top {
+    position: fixed !important;
+    bottom: 0 !important;
+    z-index: 100 !important;
 }
 
 .TTA-wapper #partSelect {
