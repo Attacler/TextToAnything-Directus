@@ -27,7 +27,7 @@ const props = defineProps<{
 const loading = ref(false);
 const hasEdits = ref(false);
 
-const checkSaveButtonState = () => {
+function checkSaveButtonState() {
     const saveButton = document.querySelector('.header-bar button:has([data-icon="check"])');
     hasEdits.value = saveButton ? saveButton.hasAttribute('disabled') : true;
 };
