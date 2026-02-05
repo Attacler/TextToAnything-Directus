@@ -52,6 +52,21 @@ export default defineInterface({
           },
         },
       },
+      {
+        field: "disableOnEdit",
+        name: "Disable on Edit",
+        type: "boolean",
+        meta: {
+          width: "full",
+          interface: "boolean",
+          options: {
+            label: "Disable button if there are unsaved changes",
+          },
+        },
+        schema: {
+          default_value: false as any,
+        },
+      },
     ];
   },
   types: ["string"],
