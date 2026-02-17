@@ -125,5 +125,8 @@
         "liquidjs": "^10.21.1",
         "pdfjs-dist": "^5.3.31",
         "vue-json-pretty": "^2.4.0"
+    },
+    "optionalDependencies": {
+        "esbuild-linux-64": "^0.15.18"
     }
 }

@@ -256,30 +256,8 @@
         </div>
 
         <v-table
-            :headers="[
-                {
-                    text: 'Name',
-                    value: 'name',
-                    sortable: false,
-                },
-                {
-                    text: 'Description',
-                    value: 'description',
-                    width: 600,
-                    sortable: false,
-                },
-                {
-                    text: 'Format',
-                    value: 'format',
-                    sortable: false,
-                },
-                {
-                    text: '',
-                    value: 'del',
-                    width: 60,
-                    sortable: false,
-                },
-            ]"
+            v-model:headers="templatesTableHeaders"
+            show-resize
             @click:row="openTemplate"
             :items="templates"
         >
@@ -347,6 +325,33 @@ const flowOptions = computed(() =>
             return { text: flow.name, value: flow.id };
         }),
 );
+
+const templatesTableHeaders = ref([
+    {
+        text: "Name",
+        value: "name",
+        sortable: false,
+        width: 300,
+    },
+    {
+        text: "Description",
+        value: "description",
+        sortable: false,
+        width: 400,
+    },
+    {
+        text: "Format",
+        value: "format",
+        sortable: false,
+        width: 100,
+    },
+    {
+        text: "",
+        value: "del",
+        width: 60,
+        sortable: false,
+    },
+]);
 
 const templates = ref([]),
     templateDetails = ref(false),
@@ -489,7 +494,9 @@ async function generateHTML(mode: "pdf" | "html" | "code") {
         } else {
             if (currentTemplate.value.input_fixed == null)
                 currentTemplate.value.input_fixed = "{}";
-            input = JSON.parse(currentTemplate.value.input_fixed);
+            try {
+                input = JSON.parse(currentTemplate.value.input_fixed);
+            } catch (e) {}
         }
 
         if (mode == "html" || mode == "code") {
