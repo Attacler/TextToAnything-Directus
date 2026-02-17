@@ -14,6 +14,16 @@ export default defineOperationApp({
     options: (field) => {
         return [
             {
+                field: "folder",
+                name: "Target folder",
+                type: "uuid",
+                meta: {
+                    width: "full",
+                    interface: "system-folder",
+                    note: "The file will be placed in the selected folder.",
+                },
+            },
+            {
                 field: "filename",
                 name: "File name",
                 type: "string",
