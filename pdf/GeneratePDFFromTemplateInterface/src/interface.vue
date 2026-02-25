@@ -93,6 +93,7 @@ async function downloadFile() {
 
         if (typeof webhookOutput.data == "string") {
             window.open("/assets/" + webhookOutput.data, "_blank");
+            loading.value = false;
             return;
         }
 
