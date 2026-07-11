@@ -252,7 +252,8 @@ async function saveSettings(data: any, mode: string) {
 }
 
 .cards-wrapper {
-    padding: 0 2.5rem;
+    padding: 0 2rem;
+    padding-top: 2rem;
     display: flex;
     flex-wrap: wrap;
     gap: 2.5rem;
