@@ -4,25 +4,28 @@ import settings from "./pages/settings.vue";
 import flowsLogExplorer from "./pages/flowLogsExplorer.vue";
 
 export default defineModule({
-  id: "tta_settings",
-  name: "Text to anything settings",
-  icon: "text_fields",
-  routes: [
-    {
-      path: "",
-      redirect: "/tta_settings/templates",
+    id: "tta_settings",
+    name: "Text to anything settings",
+    icon: "text_fields",
+    routes: [
+        {
+            path: "",
+            redirect: "/tta_settings/templates",
+        },
+        {
+            path: "templates",
+            component: ModuleComponent,
+        },
+        {
+            path: "settings",
+            component: settings,
+        },
+        {
+            path: "flowsLogExplorer",
+            component: flowsLogExplorer,
+        },
+    ],
+    preRegisterCheck(user: any) {
+        return !!(user.role?.admin_access ?? user.admin_access);
     },
-    {
-      path: "templates",
-      component: ModuleComponent,
-    },
-    {
-      path: "settings",
-      component: settings,
-    },
-    {
-      path: "flowsLogExplorer",
-      component: flowsLogExplorer,
-    },
-  ],
 });
